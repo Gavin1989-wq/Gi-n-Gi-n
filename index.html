@@ -7,17 +7,16 @@
 <style>
   :root{
     --bg:#ffffff; --card:#ffffff; --muted:#6b7280; --accent:#ff6b8a;
+    --accent-2:#ff9ab0;
     --bubble-bot:#f1f5f9; --bubble-user:#0b1220; --user-text:#ffffff;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI",Roboto,Arial;background:var(--bg);color:#0b1220;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:28px}
   .container{width:100%;max-width:880px;border-radius:12px;padding:18px;border:1px solid #eee;box-shadow:0 8px 30px rgba(15,23,42,0.06);background:#fff}
-  /* top-left logo + name small */
   .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
   .logo{width:44px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
   .logo img{width:100%;height:100%;object-fit:cover;display:block}
   .brand{font-weight:800;font-size:18px}
-  /* chat area */
   .chat{background:#fafafa;border-radius:12px;padding:18px;min-height:420px;max-height:62vh;overflow:auto;border:1px solid #f0f0f0}
   .msg{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
   .msg.bot{align-items:flex-start}
@@ -28,15 +27,12 @@
   .bubble.bot{background:var(--bubble-bot);color:#0b1220;border:1px solid #e8eef6;border-bottom-left-radius:6px}
   .bubble.user{background:var(--bubble-user);color:var(--user-text);border-bottom-right-radius:6px}
   .small{font-size:13px;color:var(--muted);margin-top:6px}
-  /* input area */
   .controls{display:flex;gap:8px;margin-top:12px}
   input[type="text"], input[type="number"]{flex:1;padding:10px;border-radius:10px;border:1px solid #eee;font-size:14px}
-  .btn{background:linear-gradient(90deg,var(--accent),#ff9ab0);border:none;padding:9px 12px;border-radius:10px;color:#fff;font-weight:700;cursor:pointer}
+  .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;padding:9px 12px;border-radius:10px;color:#fff;font-weight:700;cursor:pointer}
   .btn.ghost{background:transparent;border:1px solid #eee;color:var(--muted)}
   .hidden{display:none !important}
-  /* result styling */
   .result{margin-top:12px;padding:10px;border-radius:10px;background:#fff;border:1px solid #eee;white-space:pre-wrap}
-  /* confetti canvas full-screen overlay */
   #confettiCanvas{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9999}
   @media (max-width:720px){
     .container{padding:12px}
@@ -50,14 +46,13 @@
 <div class="container">
   <div class="topbar">
     <div class="logo" title="Giòn Giòn (logo)">
-      <!-- Put your logo image file named logo.png in same folder as this index.html -->
+      <!-- Đặt logo.png cùng thư mục index.html -->
       <img src="logo.png" alt="logo">
     </div>
     <div class="brand">Giòn Giòn</div>
   </div>
 
   <div id="chat" class="chat" aria-live="polite">
-    <!-- initial bot message (will be removed/hidden after name entered) -->
     <div id="initialBot" class="msg bot">
       <div class="avatar"><img src="logo.png" alt="avatar"></div>
       <div class="bubble bot">
@@ -68,30 +63,27 @@
     </div>
   </div>
 
-  <!-- name input (visible at first) -->
   <div id="nameControls" class="controls" style="margin-top:12px">
     <input id="nameInput" type="text" placeholder="Nhập họ và tên của bạn...">
     <button id="sendNameBtn" class="btn">Gửi tên</button>
     <button id="clearBtn" class="btn ghost">Xóa</button>
   </div>
 
-  <!-- number input (hidden until name selected) -->
   <div id="numberControls" class="controls hidden" style="margin-top:12px">
     <input id="numInput" type="number" min="1" max="999" placeholder="Chọn 1 con số (1–999)">
     <button id="sendNumBtn" class="btn">Gửi số</button>
   </div>
 
-  <!-- optional manual play music if blocked -->
   <div id="playWrap" class="controls hidden" style="margin-top:10px">
     <button id="playMusicBtn" class="btn ghost">Phát nhạc sinh nhật</button>
   </div>
 </div>
 
-<!-- Audio (place happy.mp3 in same folder or change src to an online mp3) -->
+<!-- Audio: đặt happy.mp3 cùng thư mục hoặc đổi src sang link -->
 <audio id="happyAudio" src="happy.mp3" preload="auto"></audio>
 
 <script>
-/* ================= DATA: preloaded people ================= */
+/* ========== Dữ liệu ========= */
 const RAW_LIST = [
   { name: "Nguyễn Nghi Quỳnh", dob: "05/01" },
   { name: "Trần Minh Bảo Hân", dob: "29/03" },
@@ -129,10 +121,10 @@ const RAW_LIST = [
   { name: "Phùng Thị Lan Phương", dob: "13/05" },
   { name: "Nguyễn Ngọc Huy Khang", dob: "06/07" },
   { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" },
-  { name: "Nguyễn Hồng Gia", dob: "15/08"}
+  { name: "Nguyễn Hồng Gia", dob: "15/8"}
 ];
 
-/* ================= helpers ================= */
+/* ========== Helpers ========= */
 function normalizeName(s){
   return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();
 }
@@ -151,7 +143,7 @@ function computeDaysForThisYear(day,month,today=new Date()){
   else { const days = Math.ceil((bd - t)/86400000); return {isBirthdayToday:false,passed:false,days}; }
 }
 
-/* ================= DOM refs ================= */
+/* ========== DOM refs ========= */
 const chat = document.getElementById('chat');
 const initialBot = document.getElementById('initialBot');
 const nameControls = document.getElementById('nameControls');
@@ -167,6 +159,7 @@ const playWrap = document.getElementById('playWrap');
 const playMusicBtn = document.getElementById('playMusicBtn');
 const happyAudio = document.getElementById('happyAudio');
 
+/* ========== Confetti ========= */
 const confettiCanvas = document.getElementById('confettiCanvas');
 const confCtx = confettiCanvas.getContext && confettiCanvas.getContext('2d');
 let confDPR = window.devicePixelRatio || 1;
@@ -180,7 +173,16 @@ function confettiBurst(count=120){
   (function loop(){ confCtx.clearRect(0,0,window.innerWidth,window.innerHeight); for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.ttl--; confCtx.fillStyle=p.color; confCtx.fillRect(p.x,p.y,p.w,p.w*0.6); if(p.ttl<=0||p.y>window.innerHeight+50) parts.splice(i,1); } if(parts.length>0) requestAnimationFrame(loop); else confCtx.clearRect(0,0,window.innerWidth,window.innerHeight); })();
 }
 
-/* ================= chat helpers ================= */
+/* ========== Audio control: stop function ========== */
+function stopAudio(){
+  try{
+    happyAudio.pause();
+    happyAudio.currentTime = 0;
+  }catch(e){}
+  if (playWrap) playWrap.classList.add('hidden');
+}
+
+/* ========== Chat helpers ========= */
 function appendBot(text, opts={}){
   const m = document.createElement('div'); m.className='msg bot';
   const av = document.createElement('div'); av.className='avatar'; av.innerHTML = '<img src="logo.png" alt="bot">';
@@ -196,33 +198,37 @@ function appendUser(text){
   return bubble;
 }
 
-/* ================= main flow ================= */
+/* ========== Main flow ========== */
 let selectedPerson = null;
 
 function handleNameSubmit(){
+  // stop any playing audio when user starts a new flow
+  stopAudio();
+
   const val = (nameInput.value||'').trim();
   if(!val) return;
   const norm = normalizeName(val);
   const hits = RAW_LIST.filter(p => normalizeName(p.name) === norm);
-  // remove initial bot message (so it won't show later)
-  if(initialBot) initialBot.remove();
-  appendUser(val); // show user message
+
+  if(initialBot) { initialBot.remove(); } // remove greeting if exists
+  appendUser(val);
   nameInput.value='';
+
   if(hits.length === 0){
     appendBot('<strong>Vui lòng nhập lại họ tên của bạn</strong>');
-    // keep name input visible for retry
+    // keep name input visible
     return;
   }
+
   if(hits.length === 1){
-    // select directly
     selectedPerson = hits[0];
-    // proceed: ask for number & hide nameControls
     nameControls.classList.add('hidden');
     numberControls.classList.remove('hidden');
     appendBot(`Ok <strong>${selectedPerson.name}</strong> — ok vậy <em>chọn 1 con số từ 1 - 999 đi</em>`);
     return;
   }
-  // multiple matches: show choices as bot message buttons
+
+  // multiple matches -> show choices
   const container = appendBot('Mình tìm thấy nhiều người cùng tên, chọn đúng ngày sinh của bạn:');
   const wrap = document.createElement('div'); wrap.style.marginTop = '8px';
   hits.forEach(h=>{
@@ -230,9 +236,7 @@ function handleNameSubmit(){
     btn.textContent = h.dob + ' — ' + h.name;
     btn.addEventListener('click', ()=>{
       selectedPerson = h;
-      // remove selection buttons
       wrap.remove();
-      // hide name controls and show number controls
       nameControls.classList.add('hidden');
       numberControls.classList.remove('hidden');
       appendBot(`Đã chọn: <strong>${h.name} — ${h.dob}</strong>`);
@@ -243,7 +247,6 @@ function handleNameSubmit(){
   container.appendChild(wrap);
 }
 
-/* Number submit logic */
 function handleNumberSubmit(){
   const raw = numInput.value;
   const n = Number(raw);
@@ -254,9 +257,10 @@ function handleNumberSubmit(){
   const {day,month} = parseDob(selectedPerson.dob);
   const comp = computeDaysForThisYear(day,month,new Date());
   let out='';
+
   if(comp.isBirthdayToday){
-    // try play audio (user generated interaction by clicking button)
-    happyAudio.play().catch(()=> { playWrap.classList.remove('hidden'); });
+    // play audio (allowed because user clicked)
+    happyAudio.play().catch(()=> { if (playWrap) playWrap.classList.remove('hidden'); });
     confettiBurst(200);
     const upper = selectedPerson.name.toLocaleUpperCase('vi');
     out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!\n\n(Bạn đã nhập: ${n})`;
@@ -276,16 +280,25 @@ function handleNumberSubmit(){
       }
     }
   }
+
   appendBot(out);
-  // after final output you may allow restarting: show clear button
   playWrap.classList.remove('hidden');
   numInput.value='';
 }
 
-/* ========== events ========== */
+/* ========== Events ========== */
 sendNameBtn.addEventListener('click', handleNameSubmit);
 nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNameSubmit(); });
-clearBtn.addEventListener('click', ()=>{ nameInput.value=''; selectedPerson=null; numberControls.classList.add('hidden'); nameControls.classList.remove('hidden'); appendBot('Đã xóa. Bạn có thể nhập lại họ tên.'); });
+
+// clear: stop audio and reset UI
+clearBtn.addEventListener('click', ()=>{
+  stopAudio();
+  nameInput.value='';
+  selectedPerson=null;
+  numberControls.classList.add('hidden');
+  nameControls.classList.remove('hidden');
+  appendBot('Đã xóa. Bạn có thể nhập lại họ tên.');
+});
 
 sendNumBtn.addEventListener('click', handleNumberSubmit);
 numInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNumberSubmit(); });
@@ -295,10 +308,9 @@ playMusicBtn.addEventListener('click', ()=> { happyAudio.play().catch(()=> alert
 /* autofocus */
 nameInput.focus();
 
-/* Accessibility: scroll chat bottom when new messages added */
+/* auto-scroll */
 const chatObserver = new MutationObserver(()=>{ chat.scrollTop = chat.scrollHeight; });
 chatObserver.observe(chat, { childList:true, subtree:true });
-
 </script>
 </body>
 </html>
