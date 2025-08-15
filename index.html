@@ -12,7 +12,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI",Roboto,Arial;background:var(--bg);color:#0b1220;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:28px}
-  .container{width:100%;max-width:880px;border-radius:12px;padding:18px;border:1px solid #eee;box-shadow:0 8px 30px rgba(15,23,42,0.06);background:#fff}
+  .container{width:100%;max-width:880px;border-radius:12px;padding:18px;border:1px solid #eee;box-shadow:0 8px 30px rgba(15,23,42,0.06);background:#fff;position:relative}
   .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
   .logo{width:44px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
   .logo img{width:100%;height:100%;object-fit:cover;display:block}
@@ -45,9 +45,27 @@
   .dot.anim:nth-child(3){animation-delay:240ms}
   @keyframes fade{0%{opacity:0.25;transform:translateY(0)}50%{opacity:0.9;transform:translateY(-4px)}100%{opacity:0.25;transform:translateY(0)}}
 
+  /* persistent clear button (always visible) */
+  .persistent-clear{
+    position:absolute;
+    right:14px;
+    top:14px;
+    z-index:10;
+    border-radius:8px;
+    padding:6px 10px;
+    background:#fff;
+    border:1px solid #eee;
+    box-shadow:0 6px 18px rgba(15,23,42,0.06);
+    cursor:pointer;
+    color:var(--muted);
+    font-weight:600;
+  }
+  .persistent-clear:hover{background:#fafafa}
+
   @media (max-width:720px){
     .container{padding:12px}
     .chat{min-height:360px}
+    .persistent-clear{right:8px;top:8px;padding:6px 8px}
   }
 </style>
 </head>
@@ -55,6 +73,9 @@
 <canvas id="confettiCanvas"></canvas>
 
 <div class="container">
+  <!-- persistent clear (always visible) -->
+  <button id="persistentClear" class="persistent-clear" title="Xóa / Làm lại">Xóa</button>
+
   <div class="topbar">
     <div class="logo" title="Giòn Giòn (logo)">
       <!-- Đặt logo.png cùng thư mục index.html -->
@@ -78,7 +99,7 @@
     <input id="nameInput" type="text" placeholder="Nhập họ và tên của bạn...">
     <button id="sendNameBtn" class="btn">Gửi tên</button>
     <button id="clearBtn" class="btn ghost">Xóa</button>
-    <!-- nút Làm lại ban đầu ẩn và chỉ hiển thị khi có thao tác trước đó -->
+    <!-- nút Làm lại (ẩn) -->
     <button id="retryBtn" class="btn ghost hidden">Làm lại</button>
   </div>
 
@@ -134,7 +155,7 @@ const RAW_LIST = [
   { name: "Phùng Thị Lan Phương", dob: "13/05" },
   { name: "Nguyễn Ngọc Huy Khang", dob: "06/07" },
   { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" },
-  { name: "Nguyễn Hồng Gia", dob: "15/08"}
+  { name: "Nguyễn Hồng Gia", dob: "15/8" }
 ];
 
 /* ========== Helpers ========= */
@@ -173,6 +194,9 @@ const playWrap = document.getElementById('playWrap');
 const playMusicBtn = document.getElementById('playMusicBtn');
 const happyAudio = document.getElementById('happyAudio');
 
+/* persistent clear button (always visible) */
+const persistentClear = document.getElementById('persistentClear');
+
 /* ========== Confetti (giữ nguyên) ========= */
 const confettiCanvas = document.getElementById('confettiCanvas');
 const confCtx = confettiCanvas.getContext && confettiCanvas.getContext('2d');
@@ -199,7 +223,7 @@ function stopAudio(){
 /* ========== Chat helpers ========= */
 function appendBot(text, opts={}){
   const m = document.createElement('div'); m.className='msg bot';
-  const av = document.createElement('div'); av.className='avatar'; av.innerHTML = '<img src=\"logo.png\" alt=\"bot\">';
+  const av = document.createElement('div'); av.className='avatar'; av.innerHTML = '<img src="logo.png" alt="bot">';
   const bubble = document.createElement('div'); bubble.className='bubble bot'; bubble.innerHTML = text;
   m.appendChild(av); m.appendChild(bubble);
   chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
@@ -218,7 +242,7 @@ function makeLoaderBubble(){
   m.className = 'msg bot';
 
   const av = document.createElement('div'); av.className = 'avatar';
-  av.innerHTML = '<img src=\"logo.png\" alt=\"Giòn Giòn\">';
+  av.innerHTML = '<img src="logo.png" alt="Giòn Giòn">';
 
   const bubble = document.createElement('div'); bubble.className = 'bubble bot';
 
@@ -253,8 +277,8 @@ function randDelayMs(){ return 3000 + Math.floor(Math.random()*2000); }
 /* ========== Main flow + trạng thái cho Retry ========= */
 let selectedPerson = null;
 let lastAction = null; // {type: 'name'|'number', payload: '...'}
-let lastBotMessageNode = null;
 
+/* tiện ích khóa control */
 function disableControlsDuringSend(disabled){
   nameInput.disabled = disabled;
   sendNameBtn.disabled = disabled;
@@ -263,6 +287,7 @@ function disableControlsDuringSend(disabled){
   sendNumBtn.disabled = disabled;
   retryBtn.disabled = disabled;
   playMusicBtn.disabled = disabled;
+  // persistentClear should remain enabled (always visible)
 }
 
 /* Xử lý gửi tên — bây giờ có loader 3-5s */
@@ -369,20 +394,20 @@ async function handleNumberSubmit(){
     happyAudio.play().catch(()=> { if (playWrap) playWrap.classList.remove('hidden'); });
     confettiBurst(200);
     const upper = selectedPerson.name.toLocaleUpperCase('vi');
-    out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!\n\n(Bạn đã nhập: ${n})`;
+    out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!`;
   } else {
     confettiBurst(120);
     if(comp.passed){
       if(n === comp.days){
-        out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì chúc mừng nhe<3`;
+        out = ` Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL`;
       } else {
-        out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} (số ngày) kể từ sinh nhật bạn rồi`;
+        out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp nhoàn nhoàn!!!!!`;
       }
     } else {
       if(n === comp.days){
-        out = `Ten tèn ten, con số bạn chọn chính là còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!`;
+        out = `Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!`;
       } else {
-        out = `Uhm thôi kệ số đó đi, còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ`;
+        out = `Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi`;
       }
     }
   }
@@ -461,20 +486,20 @@ retryBtn.addEventListener('click', async ()=>{
       happyAudio.play().catch(()=> { if (playWrap) playWrap.classList.remove('hidden'); });
       confettiBurst(200);
       const upper = selected.name.toLocaleUpperCase('vi');
-      out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!`;
+      out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!\n\n(Bạn đã nhập: ${n})`;
     } else {
       confettiBurst(120);
       if(comp.passed){
         if(n === comp.days){
-          out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL`;
+          out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì chúc mừng nhe<3`;
         } else {
-          out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp nhoàn nhoàn!!!!!`;
+          out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} (số ngày) kể từ sinh nhật bạn rồi`;
         }
       } else {
         if(n === comp.days){
-          out = `Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!`;
+          out = `Ten tèn ten, con số bạn chọn chính là còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!`;
         } else {
-          out = `Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi`;
+          out = `Uhm thôi kệ số đó đi, còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ`;
         }
       }
     }
@@ -490,8 +515,8 @@ retryBtn.addEventListener('click', async ()=>{
 sendNameBtn.addEventListener('click', handleNameSubmit);
 nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNameSubmit(); });
 
-// clear: stop audio and reset UI
-clearBtn.addEventListener('click', ()=>{
+// clear: stop audio and reset UI (same behavior used by persistentClear)
+function doClearAll(){
   stopAudio();
   nameInput.value='';
   selectedPerson=null;
@@ -500,7 +525,12 @@ clearBtn.addEventListener('click', ()=>{
   appendBot('Đã xóa. Bạn có thể nhập lại họ tên.');
   lastAction = null;
   retryBtn.classList.add('hidden');
-});
+}
+
+// old clear button inside controls
+clearBtn.addEventListener('click', doClearAll);
+// persistent always-visible clear button
+persistentClear.addEventListener('click', doClearAll);
 
 sendNumBtn.addEventListener('click', handleNumberSubmit);
 numInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNumberSubmit(); });
