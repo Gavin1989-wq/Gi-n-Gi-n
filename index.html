@@ -199,7 +199,7 @@ function stopAudio(){
 /* ========== Chat helpers ========= */
 function appendBot(text, opts={}){
   const m = document.createElement('div'); m.className='msg bot';
-  const av = document.createElement('div'); av.className='avatar'; av.innerHTML = '<img src="logo.png" alt="bot">';
+  const av = document.createElement('div'); av.className='avatar'; av.innerHTML = '<img src=\"logo.png\" alt=\"bot\">';
   const bubble = document.createElement('div'); bubble.className='bubble bot'; bubble.innerHTML = text;
   m.appendChild(av); m.appendChild(bubble);
   chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
@@ -218,7 +218,7 @@ function makeLoaderBubble(){
   m.className = 'msg bot';
 
   const av = document.createElement('div'); av.className = 'avatar';
-  av.innerHTML = '<img src="logo.png" alt="Giòn Giòn">';
+  av.innerHTML = '<img src=\"logo.png\" alt=\"Giòn Giòn\">';
 
   const bubble = document.createElement('div'); bubble.className = 'bubble bot';
 
@@ -374,15 +374,15 @@ async function handleNumberSubmit(){
     confettiBurst(120);
     if(comp.passed){
       if(n === comp.days){
-        out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL`;
+        out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì chúc mừng nhe<3`;
       } else {
-        out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp nhoàn nhoàn!!!!!`;
+        out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} (số ngày) kể từ sinh nhật bạn rồi`;
       }
     } else {
       if(n === comp.days){
-        out = `Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!`;
+        out = `Ten tèn ten, con số bạn chọn chính là còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!`;
       } else {
-        out = `Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi`;
+        out = `Uhm thôi kệ số đó đi, còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ`;
       }
     }
   }
@@ -461,20 +461,20 @@ retryBtn.addEventListener('click', async ()=>{
       happyAudio.play().catch(()=> { if (playWrap) playWrap.classList.remove('hidden'); });
       confettiBurst(200);
       const upper = selected.name.toLocaleUpperCase('vi');
-      out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!\n\n(Bạn đã nhập: ${n})`;
+      out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!`;
     } else {
       confettiBurst(120);
       if(comp.passed){
         if(n === comp.days){
-          out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì chúc mừng nhe<3`;
+          out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL`;
         } else {
-          out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} (số ngày) kể từ sinh nhật bạn rồi`;
+          out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp nhoàn nhoàn!!!!!`;
         }
       } else {
         if(n === comp.days){
-          out = `Ten tèn ten, con số bạn chọn chính là còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!`;
+          out = `Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!`;
         } else {
-          out = `Uhm thôi kệ số đó đi, còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ`;
+          out = `Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi`;
         }
       }
     }
