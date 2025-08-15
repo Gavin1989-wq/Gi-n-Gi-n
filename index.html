@@ -3,123 +3,95 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Coi vận mệnh</title>
+<title>Coi vận mệnh — Chat</title>
 <style>
   :root{
-    --bg: #ffffff;
-    --card: #ffffff;
-    --text: #0b1220;
-    --muted: #6b7280;
-    --accent: #ff6b8a;
-    --accent-2: #ff9ab0;
-    --border: #e6e6e6;
+    --bg:#ffffff; --card:#ffffff; --muted:#6b7280; --accent:#ff6b8a;
+    --bubble-bot:#f1f5f9; --bubble-user:#0b1220; --user-text:#ffffff;
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0;
-    font-family:system-ui,Segoe UI,Roboto,Arial;
-    background:var(--bg);
-    color:var(--text);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:24px;
-  }
-  .wrap{
-    width:100%;
-    max-width:980px;
-    border-radius:12px;
-    background: linear-gradient(180deg, rgba(255,255,255,1), rgba(250,250,250,1));
-    box-shadow: 0 8px 30px rgba(15,23,42,0.08);
-    padding:18px;
-    border:1px solid var(--border);
-  }
-  h1{margin:0 0 8px;font-size:24px}
-  .grid{display:grid;grid-template-columns:1fr 320px;gap:16px}
-  @media (max-width:880px){ .grid{grid-template-columns:1fr} }
-  label{display:block;margin-top:12px;margin-bottom:6px;font-weight:600}
-  input[type="text"], input[type="number"]{
-    width:100%; padding:10px; border-radius:10px;
-    border:1px solid var(--border); background:#fff; color:var(--text);
-    font-size:14px;
-  }
-  .btn{
-    background:linear-gradient(90deg,var(--accent),var(--accent-2));
-    border:none;padding:10px 14px;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;
-  }
-  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text);font-weight:600}
-  .card{background:transparent;padding:12px;border-radius:10px}
-  .muted{color:var(--muted);font-size:13px}
-  .result{
-    margin-top:12px;padding:12px;border-radius:10px;background:#fff;border:1px solid var(--border);
-    box-shadow: 0 6px 18px rgba(15,23,42,0.03); white-space:pre-wrap;
-  }
+  body{margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI",Roboto,Arial;background:var(--bg);color:#0b1220;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:28px}
+  .container{width:100%;max-width:880px;border-radius:12px;padding:18px;border:1px solid #eee;box-shadow:0 8px 30px rgba(15,23,42,0.06);background:#fff}
+  /* top-left logo + name small */
+  .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .logo{width:44px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+  .logo img{width:100%;height:100%;object-fit:cover;display:block}
+  .brand{font-weight:800;font-size:18px}
+  /* chat area */
+  .chat{background:#fafafa;border-radius:12px;padding:18px;min-height:420px;max-height:62vh;overflow:auto;border:1px solid #f0f0f0}
+  .msg{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
+  .msg.bot{align-items:flex-start}
+  .msg.user{justify-content:flex-end}
+  .avatar{width:40px;height:40px;border-radius:8px;overflow:hidden;flex-shrink:0}
+  .avatar img{width:100%;height:100%;object-fit:cover}
+  .bubble{max-width:78%;padding:10px 12px;border-radius:12px;line-height:1.45}
+  .bubble.bot{background:var(--bubble-bot);color:#0b1220;border:1px solid #e8eef6;border-bottom-left-radius:6px}
+  .bubble.user{background:var(--bubble-user);color:var(--user-text);border-bottom-right-radius:6px}
+  .small{font-size:13px;color:var(--muted);margin-top:6px}
+  /* input area */
+  .controls{display:flex;gap:8px;margin-top:12px}
+  input[type="text"], input[type="number"]{flex:1;padding:10px;border-radius:10px;border:1px solid #eee;font-size:14px}
+  .btn{background:linear-gradient(90deg,var(--accent),#ff9ab0);border:none;padding:9px 12px;border-radius:10px;color:#fff;font-weight:700;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid #eee;color:var(--muted)}
   .hidden{display:none !important}
+  /* result styling */
+  .result{margin-top:12px;padding:10px;border-radius:10px;background:#fff;border:1px solid #eee;white-space:pre-wrap}
+  /* confetti canvas full-screen overlay */
   #confettiCanvas{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9999}
-  .playHint{margin-top:8px;font-size:13px;color:var(--muted)}
+  @media (max-width:720px){
+    .container{padding:12px}
+    .chat{min-height:360px}
+  }
 </style>
 </head>
 <body>
 <canvas id="confettiCanvas"></canvas>
 
-<div class="wrap">
-  <h1>Coi vận mệnh</h1>
-  <!-- Ghi chú đã ẩn theo yêu cầu -->
-  <div class="grid">
-    <div class="card">
-      <label>Họ và Tên</label>
-      <input id="nameInput" type="text" placeholder="Nhập họ tên của bạn…">
+<div class="container">
+  <div class="topbar">
+    <div class="logo" title="Giòn Giòn (logo)">
+      <!-- Put your logo image file named logo.png in same folder as this index.html -->
+      <img src="logo.png" alt="logo">
+    </div>
+    <div class="brand">Giòn Giòn</div>
+  </div>
 
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button id="findBtn" class="btn">Tìm & Chọn</button>
-        <button id="resetBtn" class="btn ghost">Nhập lại</button>
-      </div>
-
-      <!-- nếu có nhiều trùng tên -->
-      <div id="dupeBox" class="hidden" style="margin-top:12px">
-        <div class="muted">Tên này có nhiều ngày sinh. Chọn đúng của bạn:</div>
-        <div id="pickList" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
-      </div>
-
-      <div id="chosenBox" class="hidden" style="margin-top:12px">
-        <div style="font-weight:700" id="chosenLine"></div>
-
-        <label>Nhập 1 con số (1–999)</label>
-        <input id="numInput" type="number" min="1" max="999" placeholder="Ví dụ: 23">
-
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button id="checkBtn" class="btn">Xem kết quả</button>
-          <button id="copyBtn" class="btn ghost">Sao chép</button>
-        </div>
-
-        <div id="resultBox" class="result hidden"></div>
-        <div id="playMusicBtnWrap" class="hidden" style="margin-top:8px">
-          <button id="playMusicBtn" class="btn ghost">Phát nhạc sinh nhật</button>
-          <div class="playHint">Trình duyệt có thể chặn nhạc tự động — nếu không nghe được, bấm nút này.</div>
-        </div>
+  <div id="chat" class="chat" aria-live="polite">
+    <!-- initial bot message (will be removed/hidden after name entered) -->
+    <div id="initialBot" class="msg bot">
+      <div class="avatar"><img src="logo.png" alt="avatar"></div>
+      <div class="bubble bot">
+        <strong>Xin chào!</strong><br>
+        Bạn muốn biết đường tình duyên, đường học vấn, etc... không? Nếu có <strong>hãy điền họ tên của bạn vào!</strong>
+        <div class="small">Gõ tên chính xác (không phân biệt dấu) và nhấn Enter hoặc "Gửi tên".</div>
       </div>
     </div>
+  </div>
 
-    <div class="card">
-      <div class="muted">Trạng thái</div>
-      <div id="status" style="font-weight:700;margin-top:6px">Chưa chọn tên</div>
-      <div id="errorMsg" style="color:#d9534f;margin-top:8px"></div>
-      <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
-      <div class="muted">Chú ý kỹ thuật</div>
-      <ul class="muted">
-        <li>Lưu file này thành <strong>index.html</strong> với encoding <strong>UTF-8</strong>.</li>
-        <li>Để dùng nhạc, đặt file <strong>happy.mp3</strong> cùng thư mục hoặc chỉnh đường dẫn trong &lt;audio&gt;.</li>
-      </ul>
-    </div>
+  <!-- name input (visible at first) -->
+  <div id="nameControls" class="controls" style="margin-top:12px">
+    <input id="nameInput" type="text" placeholder="Nhập họ và tên của bạn...">
+    <button id="sendNameBtn" class="btn">Gửi tên</button>
+    <button id="clearBtn" class="btn ghost">Xóa</button>
+  </div>
+
+  <!-- number input (hidden until name selected) -->
+  <div id="numberControls" class="controls hidden" style="margin-top:12px">
+    <input id="numInput" type="number" min="1" max="999" placeholder="Chọn 1 con số (1–999)">
+    <button id="sendNumBtn" class="btn">Gửi số</button>
+  </div>
+
+  <!-- optional manual play music if blocked -->
+  <div id="playWrap" class="controls hidden" style="margin-top:10px">
+    <button id="playMusicBtn" class="btn ghost">Phát nhạc sinh nhật</button>
   </div>
 </div>
 
-<!-- Audio (thêm file happy.mp3 vào cùng thư mục hoặc sửa src thành URL) -->
+<!-- Audio (place happy.mp3 in same folder or change src to an online mp3) -->
 <audio id="happyAudio" src="happy.mp3" preload="auto"></audio>
 
 <script>
-/* ========== DATA (đã nạp sẵn) ========== */
+/* ================= DATA: preloaded people ================= */
 const RAW_LIST = [
   { name: "Nguyễn Nghi Quỳnh", dob: "05/01" },
   { name: "Trần Minh Bảo Hân", dob: "29/03" },
@@ -156,169 +128,138 @@ const RAW_LIST = [
   { name: "Nguyễn Đặng Hoàng Lê", dob: "25/08" },
   { name: "Phùng Thị Lan Phương", dob: "13/05" },
   { name: "Nguyễn Ngọc Huy Khang", dob: "06/07" },
-  { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" },
-  { name: "Nguyễn Hồng Gia", dob: "15/08"}
+  { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" }
 ];
 
-/* ========== Helpers ========== */
+/* ================= helpers ================= */
 function normalizeName(s){
-  return (s||'').normalize('NFD')
-    .replace(/[\u0300-\u036f]/g,'')
-    .replace(/đ/g,'d').replace(/Đ/g,'D')
-    .toLowerCase()
-    .replace(/\s+/g,' ')
-    .trim();
+  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();
 }
-function parseDob(ddmm){ const [d,m] = ddmm.split('/').map(x=>parseInt(x,10)); return { day:d, month:m }; }
-function localMidnight(date){ const t = new Date(date); t.setHours(0,0,0,0); return t; }
-function computeDaysForThisYear(day, month, today = new Date()){
+function parseDob(ddmm){ const [d,m]=ddmm.split('/').map(x=>parseInt(x,10)); return {day:d,month:m}; }
+function localMidnight(date){ const t=new Date(date); t.setHours(0,0,0,0); return t; }
+function computeDaysForThisYear(day,month,today=new Date()){
   const t = localMidnight(today);
   const y = t.getFullYear();
   let bd = new Date(y, month-1, day);
-  // handle Feb 29 fallback to Feb 28 when necessary
   if (bd.getMonth() !== (month-1)) {
-    if (month === 2 && day === 29) bd = new Date(y,1,28);
+    if (month===2 && day===29) bd = new Date(y,1,28);
   }
   bd = localMidnight(bd);
-  if (bd.getTime() === t.getTime()) return { isBirthdayToday:true, passed:false, days:0 };
-  if (bd.getTime() < t.getTime()) {
-    const days = Math.floor((t - bd) / 86400000);
-    return { isBirthdayToday:false, passed:true, days };
-  } else {
-    const days = Math.ceil((bd - t) / 86400000);
-    return { isBirthdayToday:false, passed:false, days };
-  }
+  if(bd.getTime()===t.getTime()) return {isBirthdayToday:true,passed:false,days:0};
+  if(bd.getTime() < t.getTime()) { const days = Math.floor((t - bd)/86400000); return {isBirthdayToday:false,passed:true,days}; }
+  else { const days = Math.ceil((bd - t)/86400000); return {isBirthdayToday:false,passed:false,days}; }
 }
 
-/* ========== DOM ========== */
+/* ================= DOM refs ================= */
+const chat = document.getElementById('chat');
+const initialBot = document.getElementById('initialBot');
+const nameControls = document.getElementById('nameControls');
 const nameInput = document.getElementById('nameInput');
-const findBtn = document.getElementById('findBtn');
-const resetBtn = document.getElementById('resetBtn');
-const dupeBox = document.getElementById('dupeBox');
-const pickList = document.getElementById('pickList');
-const chosenBox = document.getElementById('chosenBox');
-const chosenLine = document.getElementById('chosenLine');
+const sendNameBtn = document.getElementById('sendNameBtn');
+const clearBtn = document.getElementById('clearBtn');
+
+const numberControls = document.getElementById('numberControls');
 const numInput = document.getElementById('numInput');
-const checkBtn = document.getElementById('checkBtn');
-const copyBtn = document.getElementById('copyBtn');
-const resultBox = document.getElementById('resultBox');
-const status = document.getElementById('status');
-const errorMsg = document.getElementById('errorMsg');
-const playMusicBtnWrap = document.getElementById('playMusicBtnWrap');
+const sendNumBtn = document.getElementById('sendNumBtn');
+
+const playWrap = document.getElementById('playWrap');
 const playMusicBtn = document.getElementById('playMusicBtn');
 const happyAudio = document.getElementById('happyAudio');
 
-let selected = null; // chosen {name,dob}
-
-/* ========== Confetti Implementation ========== */
-const confCanvas = document.getElementById('confettiCanvas');
-const confCtx = confCanvas.getContext && confCanvas.getContext('2d');
+const confettiCanvas = document.getElementById('confettiCanvas');
+const confCtx = confettiCanvas.getContext && confettiCanvas.getContext('2d');
 let confDPR = window.devicePixelRatio || 1;
-function confettiResize(){
-  confCanvas.width = window.innerWidth * confDPR;
-  confCanvas.height = window.innerHeight * confDPR;
-  confCanvas.style.width = window.innerWidth + 'px';
-  confCanvas.style.height = window.innerHeight + 'px';
-  confCtx.setTransform(confDPR,0,0,confDPR,0,0);
-}
-if(confCtx){ confettiResize(); window.addEventListener('resize', confettiResize); }
-
+function confResize(){ if(!confCtx) return; confettiCanvas.width = window.innerWidth*confDPR; confettiCanvas.height = window.innerHeight*confDPR; confettiCanvas.style.width = window.innerWidth+'px'; confettiCanvas.style.height = window.innerHeight+'px'; confCtx.setTransform(confDPR,0,0,confDPR,0,0); }
+if(confCtx){ confResize(); window.addEventListener('resize', confResize); }
 function confettiBurst(count=120){
   if(!confCtx) return;
-  const parts = [];
-  const colors = ['#ff5a8f','#ffd166','#6df0ff','#6a9bff','#a8ffb0'];
-  for(let i=0;i<count;i++){
-    parts.push({
-      x: Math.random()*window.innerWidth,
-      y: Math.random()*window.innerHeight*0.1,
-      vx:(Math.random()-0.5)*8,
-      vy: Math.random()*6+2,
-      w: Math.random()*8+4,
-      color: colors[Math.floor(Math.random()*colors.length)],
-      ttl: 80 + Math.random()*60
-    });
+  const parts=[];
+  const colors=['#ff5a8f','#ffd166','#6df0ff','#6a9bff','#a8ffb0'];
+  for(let i=0;i<count;i++){ parts.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight*0.12,vx:(Math.random()-0.5)*8,vy:Math.random()*6+2,w:Math.random()*8+4,color:colors[Math.floor(Math.random()*colors.length)],ttl:80+Math.random()*60}); }
+  (function loop(){ confCtx.clearRect(0,0,window.innerWidth,window.innerHeight); for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.ttl--; confCtx.fillStyle=p.color; confCtx.fillRect(p.x,p.y,p.w,p.w*0.6); if(p.ttl<=0||p.y>window.innerHeight+50) parts.splice(i,1); } if(parts.length>0) requestAnimationFrame(loop); else confCtx.clearRect(0,0,window.innerWidth,window.innerHeight); })();
+}
+
+/* ================= chat helpers ================= */
+function appendBot(text, opts={}){
+  const m = document.createElement('div'); m.className='msg bot';
+  const av = document.createElement('div'); av.className='avatar'; av.innerHTML = '<img src="logo.png" alt="bot">';
+  const bubble = document.createElement('div'); bubble.className='bubble bot'; bubble.innerHTML = text;
+  m.appendChild(av); m.appendChild(bubble);
+  chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
+  return bubble;
+}
+function appendUser(text){
+  const m = document.createElement('div'); m.className='msg user';
+  const bubble = document.createElement('div'); bubble.className='bubble user'; bubble.textContent = text;
+  m.appendChild(bubble); chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
+  return bubble;
+}
+
+/* ================= main flow ================= */
+let selectedPerson = null;
+
+function handleNameSubmit(){
+  const val = (nameInput.value||'').trim();
+  if(!val) return;
+  const norm = normalizeName(val);
+  const hits = RAW_LIST.filter(p => normalizeName(p.name) === norm);
+  // remove initial bot message (so it won't show later)
+  if(initialBot) initialBot.remove();
+  appendUser(val); // show user message
+  nameInput.value='';
+  if(hits.length === 0){
+    appendBot('<strong>Vui lòng nhập lại họ tên của bạn</strong>');
+    // keep name input visible for retry
+    return;
   }
-  (function loop(){
-    confCtx.clearRect(0,0,window.innerWidth,window.innerHeight);
-    for(let i=parts.length-1;i>=0;i--){
-      const p = parts[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.12;
-      p.ttl--;
-      confCtx.fillStyle = p.color;
-      confCtx.fillRect(p.x, p.y, p.w, p.w*0.6);
-      if(p.ttl<=0 || p.y > window.innerHeight + 50) parts.splice(i,1);
-    }
-    if(parts.length>0) requestAnimationFrame(loop);
-    else confCtx.clearRect(0,0,window.innerWidth,window.innerHeight);
-  })();
-}
-
-/* ========== Interaction Logic ========== */
-function showError(msg){ errorMsg.textContent = msg || ''; }
-function clearResult(){ resultBox.classList.add('hidden'); resultBox.textContent = ''; }
-
-function findName(){
-  showError(''); clearResult(); selected = null;
-  const q = nameInput.value || '';
-  const n = normalizeName(q);
-  if(!n){ showError('Vui lòng nhập họ tên của bạn'); status.textContent = 'Chưa chọn tên'; return; }
-  const hits = RAW_LIST.filter(p => normalizeName(p.name) === n);
-  if(hits.length === 0){ showError('Vui lòng nhập lại họ tên của bạn'); status.textContent = 'Không tìm thấy'; dupeBox.classList.add('hidden'); chosenBox.classList.add('hidden'); return; }
-  if(hits.length === 1){ choosePerson(hits[0]); return; }
-  // multiple matches
-  pickList.innerHTML = '';
+  if(hits.length === 1){
+    // select directly
+    selectedPerson = hits[0];
+    // proceed: ask for number & hide nameControls
+    nameControls.classList.add('hidden');
+    numberControls.classList.remove('hidden');
+    appendBot(`Ok <strong>${selectedPerson.name}</strong> — ok vậy <em>chọn 1 con số từ 1 - 999 đi</em>`);
+    return;
+  }
+  // multiple matches: show choices as bot message buttons
+  const container = appendBot('Mình tìm thấy nhiều người cùng tên, chọn đúng ngày sinh của bạn:');
+  const wrap = document.createElement('div'); wrap.style.marginTop = '8px';
   hits.forEach(h=>{
-    const b = document.createElement('button'); b.className = 'btn ghost'; b.textContent = `${h.name} — ${h.dob}`;
-    b.addEventListener('click', ()=> choosePerson(h));
-    pickList.appendChild(b);
+    const btn = document.createElement('button'); btn.className='btn ghost'; btn.style.margin='4px 6px 0 0';
+    btn.textContent = h.dob + ' — ' + h.name;
+    btn.addEventListener('click', ()=>{
+      selectedPerson = h;
+      // remove selection buttons
+      wrap.remove();
+      // hide name controls and show number controls
+      nameControls.classList.add('hidden');
+      numberControls.classList.remove('hidden');
+      appendBot(`Đã chọn: <strong>${h.name} — ${h.dob}</strong>`);
+      appendBot('Ok vậy chọn 1 con số từ 1 - 999 đi');
+    });
+    wrap.appendChild(btn);
   });
-  dupeBox.classList.remove('hidden');
-  chosenBox.classList.add('hidden');
-  status.textContent = 'Có nhiều trùng tên — cần chọn';
+  container.appendChild(wrap);
 }
 
-function choosePerson(p){
-  selected = p;
-  dupeBox.classList.add('hidden');
-  chosenBox.classList.remove('hidden');
-  chosenLine.textContent = `${p.name} — ${p.dob}`;
-  status.textContent = 'Đã chọn tên';
-  showError('');
-  clearResult();
-}
-
-function checkNumber(){
-  showError('');
-  if(!selected){ showError('Chưa chọn tên'); return; }
+/* Number submit logic */
+function handleNumberSubmit(){
   const raw = numInput.value;
   const n = Number(raw);
-  if(!raw || isNaN(n) || n<1 || n>999){ showError('Nhập 1 số hợp lệ từ 1 đến 999'); return; }
-  // compute days vs this year's birthday
-  const { day, month } = parseDob(selected.dob);
-  const comp = computeDaysForThisYear(day, month, new Date());
-  let out = '';
+  if(!raw || isNaN(n) || n<1 || n>999){ appendBot('<strong>Hãy nhập một số hợp lệ từ 1 đến 999.</strong>'); return; }
+  appendUser(String(n));
+  if(!selectedPerson){ appendBot('Chưa chọn người — quay lại nhập tên.'); nameControls.classList.remove('hidden'); numberControls.classList.add('hidden'); return; }
 
+  const {day,month} = parseDob(selectedPerson.dob);
+  const comp = computeDaysForThisYear(day,month,new Date());
+  let out='';
   if(comp.isBirthdayToday){
-    // play audio (user gesture is this button click -> most browsers allow)
-    try{
-      const playPromise = happyAudio.play();
-      if(playPromise && typeof playPromise.then === 'function'){
-        playPromise.catch(()=> { 
-          // show manual play button if blocked
-          playMusicBtnWrap.classList.remove('hidden');
-        });
-      }
-    }catch(e){
-      playMusicBtnWrap.classList.remove('hidden');
-    }
-    // confetti + music
+    // try play audio (user generated interaction by clicking button)
+    happyAudio.play().catch(()=> { playWrap.classList.remove('hidden'); });
     confettiBurst(200);
-    const upper = selected.name.toLocaleUpperCase('vi');
+    const upper = selectedPerson.name.toLocaleUpperCase('vi');
     out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!\n\n(Bạn đã nhập: ${n})`;
   } else {
-    // not birthday -> only confetti
     confettiBurst(120);
     if(comp.passed){
       if(n === comp.days){
@@ -334,29 +275,28 @@ function checkNumber(){
       }
     }
   }
-
-  resultBox.classList.remove('hidden');
-  resultBox.textContent = out;
+  appendBot(out);
+  // after final output you may allow restarting: show clear button
+  playWrap.classList.remove('hidden');
+  numInput.value='';
 }
 
-/* manual play button if browser blocked autoplay */
-playMusicBtn.addEventListener('click', ()=> {
-  happyAudio.play().catch(()=> alert('Không thể phát nhạc — kiểm tra file/máy người dùng'));
-});
+/* ========== events ========== */
+sendNameBtn.addEventListener('click', handleNameSubmit);
+nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNameSubmit(); });
+clearBtn.addEventListener('click', ()=>{ nameInput.value=''; selectedPerson=null; numberControls.classList.add('hidden'); nameControls.classList.remove('hidden'); appendBot('Đã xóa. Bạn có thể nhập lại họ tên.'); });
 
-/* events */
-findBtn.addEventListener('click', findName);
-resetBtn.addEventListener('click', ()=>{
-  nameInput.value=''; numInput.value=''; selected=null; dupeBox.classList.add('hidden'); chosenBox.classList.add('hidden'); showError(''); status.textContent='Chưa chọn tên'; clearResult();
-});
-checkBtn.addEventListener('click', checkNumber);
-copyBtn.addEventListener('click', ()=>{
-  if(resultBox.classList.contains('hidden')){ showError('Chưa có kết quả để sao chép'); return; }
-  navigator.clipboard?.writeText(resultBox.textContent).then(()=>{}, ()=> prompt('Sao chép kết quả:', resultBox.textContent));
-});
+sendNumBtn.addEventListener('click', handleNumberSubmit);
+numInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNumberSubmit(); });
 
-/* Enter to find */
-nameInput.addEventListener('keydown', e => { if(e.key === 'Enter') findName(); });
+playMusicBtn.addEventListener('click', ()=> { happyAudio.play().catch(()=> alert('Không thể phát nhạc — kiểm tra file happy.mp3 hoặc quyền trình duyệt')); });
+
+/* autofocus */
+nameInput.focus();
+
+/* Accessibility: scroll chat bottom when new messages added */
+const chatObserver = new MutationObserver(()=>{ chat.scrollTop = chat.scrollHeight; });
+chatObserver.observe(chat, { childList:true, subtree:true });
 
 </script>
 </body>
