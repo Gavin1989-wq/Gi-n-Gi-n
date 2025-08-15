@@ -34,6 +34,17 @@
   .hidden{display:none !important}
   .result{margin-top:12px;padding:10px;border-radius:10px;background:#fff;border:1px solid #eee;white-space:pre-wrap}
   #confettiCanvas{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9999}
+
+  /* loader: hàng chữ + dots (nhạt nhạt) */
+  .thinking-row{display:flex;align-items:center;gap:10px}
+  .thinking-label{font-size:13px;color:var(--muted);font-weight:600}
+  .dots{display:inline-flex;gap:6px;align-items:center}
+  .dot{width:8px;height:8px;border-radius:50%;background:#9aa7bf;opacity:0.25}
+  .dot.anim{animation:fade 900ms infinite ease-in-out}
+  .dot.anim:nth-child(2){animation-delay:120ms}
+  .dot.anim:nth-child(3){animation-delay:240ms}
+  @keyframes fade{0%{opacity:0.25;transform:translateY(0)}50%{opacity:0.9;transform:translateY(-4px)}100%{opacity:0.25;transform:translateY(0)}}
+
   @media (max-width:720px){
     .container{padding:12px}
     .chat{min-height:360px}
@@ -67,6 +78,8 @@
     <input id="nameInput" type="text" placeholder="Nhập họ và tên của bạn...">
     <button id="sendNameBtn" class="btn">Gửi tên</button>
     <button id="clearBtn" class="btn ghost">Xóa</button>
+    <!-- nút Làm lại ban đầu ẩn và chỉ hiển thị khi có thao tác trước đó -->
+    <button id="retryBtn" class="btn ghost hidden">Làm lại</button>
   </div>
 
   <div id="numberControls" class="controls hidden" style="margin-top:12px">
@@ -83,7 +96,7 @@
 <audio id="happyAudio" src="happy.mp3" preload="auto"></audio>
 
 <script>
-/* ========== Dữ liệu ========= */
+/* ========== Dữ liệu (nguyên gốc) ========= */
 const RAW_LIST = [
   { name: "Nguyễn Nghi Quỳnh", dob: "05/01" },
   { name: "Trần Minh Bảo Hân", dob: "29/03" },
@@ -120,8 +133,7 @@ const RAW_LIST = [
   { name: "Nguyễn Đặng Hoàng Lê", dob: "25/08" },
   { name: "Phùng Thị Lan Phương", dob: "13/05" },
   { name: "Nguyễn Ngọc Huy Khang", dob: "06/07" },
-  { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" },
-  { name: "Nguyễn Hồng Gia", dob: "15/8"}
+  { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" }
 ];
 
 /* ========== Helpers ========= */
@@ -150,6 +162,7 @@ const nameControls = document.getElementById('nameControls');
 const nameInput = document.getElementById('nameInput');
 const sendNameBtn = document.getElementById('sendNameBtn');
 const clearBtn = document.getElementById('clearBtn');
+const retryBtn = document.getElementById('retryBtn');
 
 const numberControls = document.getElementById('numberControls');
 const numInput = document.getElementById('numInput');
@@ -159,7 +172,7 @@ const playWrap = document.getElementById('playWrap');
 const playMusicBtn = document.getElementById('playMusicBtn');
 const happyAudio = document.getElementById('happyAudio');
 
-/* ========== Confetti ========= */
+/* ========== Confetti (giữ nguyên) ========= */
 const confettiCanvas = document.getElementById('confettiCanvas');
 const confCtx = confettiCanvas.getContext && confettiCanvas.getContext('2d');
 let confDPR = window.devicePixelRatio || 1;
@@ -198,25 +211,91 @@ function appendUser(text){
   return bubble;
 }
 
-/* ========== Main flow ========== */
+/* ========== Loader helper (3-5s) ========= */
+function makeLoaderBubble(){
+  const m = document.createElement('div');
+  m.className = 'msg bot';
+
+  const av = document.createElement('div'); av.className = 'avatar';
+  av.innerHTML = '<img src="logo.png" alt="Giòn Giòn">';
+
+  const bubble = document.createElement('div'); bubble.className = 'bubble bot';
+
+  const row = document.createElement('div'); row.className = 'thinking-row';
+  const label = document.createElement('div'); label.className = 'thinking-label';
+  label.textContent = 'Giòn Giòn đang suy nghĩ';
+
+  const dots = document.createElement('span'); dots.className = 'dots';
+  for(let i=0;i<3;i++){
+    const d = document.createElement('span');
+    d.className = 'dot anim';
+    dots.appendChild(d);
+  }
+
+  row.appendChild(label);
+  row.appendChild(dots);
+  bubble.appendChild(row);
+
+  m.appendChild(av);
+  m.appendChild(bubble);
+
+  chat.appendChild(m);
+  chat.scrollTop = chat.scrollHeight;
+
+  // accessibility: cho biết chat đang bận
+  chat.setAttribute('aria-busy', 'true');
+
+  return m;
+}
+function randDelayMs(){ return 3000 + Math.floor(Math.random()*2000); }
+
+/* ========== Main flow + trạng thái cho Retry ========= */
 let selectedPerson = null;
+let lastAction = null; // {type: 'name'|'number', payload: '...'}
+let lastBotMessageNode = null;
 
-function handleNameSubmit(){
-  // stop any playing audio when user starts a new flow
+function disableControlsDuringSend(disabled){
+  nameInput.disabled = disabled;
+  sendNameBtn.disabled = disabled;
+  clearBtn.disabled = disabled;
+  numInput.disabled = disabled;
+  sendNumBtn.disabled = disabled;
+  retryBtn.disabled = disabled;
+  playMusicBtn.disabled = disabled;
+}
+
+/* Xử lý gửi tên — bây giờ có loader 3-5s */
+async function handleNameSubmit(){
   stopAudio();
-
   const val = (nameInput.value||'').trim();
   if(!val) return;
   const norm = normalizeName(val);
   const hits = RAW_LIST.filter(p => normalizeName(p.name) === norm);
 
-  if(initialBot) { initialBot.remove(); } // remove greeting if exists
+  if(initialBot) { initialBot.remove(); }
+
+  // show user bubble immediately
   appendUser(val);
   nameInput.value='';
 
+  // show loader
+  disableControlsDuringSend(true);
+  const loaderNode = makeLoaderBubble();
+
+  // lưu lastAction để nút Làm lại dùng
+  lastAction = { type: 'name', payload: val, hits: hits };
+
+  // đợi 3-5s
+  await new Promise(r => setTimeout(r, randDelayMs()));
+
+  // remove loader & aria flag
+  loaderNode.remove();
+  chat.removeAttribute('aria-busy');
+
   if(hits.length === 0){
     appendBot('<strong>Vui lòng nhập lại họ tên của bạn</strong>');
-    // keep name input visible
+    disableControlsDuringSend(false);
+    retryBtn.classList.remove('hidden'); retryBtn.disabled = false;
     return;
   }
 
@@ -225,10 +304,12 @@ function handleNameSubmit(){
     nameControls.classList.add('hidden');
     numberControls.classList.remove('hidden');
     appendBot(`Ok <strong>${selectedPerson.name}</strong> — ok vậy <em>chọn 1 con số từ 1 - 999 đi</em>`);
+    disableControlsDuringSend(false);
+    retryBtn.classList.remove('hidden'); retryBtn.disabled = false;
     return;
   }
 
-  // multiple matches -> show choices
+  // multiple matches -> hiển thị lựa chọn
   const container = appendBot('Mình tìm thấy nhiều người cùng tên, chọn đúng ngày sinh của bạn:');
   const wrap = document.createElement('div'); wrap.style.marginTop = '8px';
   hits.forEach(h=>{
@@ -245,21 +326,45 @@ function handleNameSubmit(){
     wrap.appendChild(btn);
   });
   container.appendChild(wrap);
+  disableControlsDuringSend(false);
+  retryBtn.classList.remove('hidden'); retryBtn.disabled = false;
 }
 
-function handleNumberSubmit(){
+/* Xử lý gửi số — có loader 3-5s */
+async function handleNumberSubmit(){
   const raw = numInput.value;
   const n = Number(raw);
   if(!raw || isNaN(n) || n<1 || n>999){ appendBot('<strong>Hãy nhập một số hợp lệ từ 1 đến 999.</strong>'); return; }
+
   appendUser(String(n));
-  if(!selectedPerson){ appendBot('Chưa chọn người — quay lại nhập tên.'); nameControls.classList.remove('hidden'); numberControls.classList.add('hidden'); return; }
+  numInput.value='';
+
+  if(!selectedPerson){
+    appendBot('Chưa chọn người — quay lại nhập tên.');
+    nameControls.classList.remove('hidden');
+    numberControls.classList.add('hidden');
+    return;
+  }
+
+  // lưu lastAction để retry
+  lastAction = { type: 'number', payload: n, person: selectedPerson };
+
+  // show loader
+  disableControlsDuringSend(true);
+  const loaderNode = makeLoaderBubble();
+
+  await new Promise(r => setTimeout(r, randDelayMs()));
+
+  // remove loader & aria flag
+  loaderNode.remove();
+  chat.removeAttribute('aria-busy');
 
   const {day,month} = parseDob(selectedPerson.dob);
   const comp = computeDaysForThisYear(day,month,new Date());
   let out='';
 
   if(comp.isBirthdayToday){
-    // play audio (allowed because user clicked)
+    // play audio (allowed vì người đã click)
     happyAudio.play().catch(()=> { if (playWrap) playWrap.classList.remove('hidden'); });
     confettiBurst(200);
     const upper = selectedPerson.name.toLocaleUpperCase('vi');
@@ -283,10 +388,104 @@ function handleNumberSubmit(){
 
   appendBot(out);
   playWrap.classList.remove('hidden');
-  numInput.value='';
+  disableControlsDuringSend(false);
+  retryBtn.classList.remove('hidden'); retryBtn.disabled = false;
 }
 
-/* ========== Events ========== */
+/* ========== Retry (Làm lại) ========= */
+retryBtn.addEventListener('click', async ()=>{
+  if(!lastAction) return;
+  retryBtn.disabled = true;
+
+  if(lastAction.type === 'name'){
+    disableControlsDuringSend(true);
+    const loader = makeLoaderBubble();
+    await new Promise(r => setTimeout(r, randDelayMs()));
+    loader.remove();
+    chat.removeAttribute('aria-busy');
+
+    const val = lastAction.payload;
+    const hits = RAW_LIST.filter(p => normalizeName(p.name) === normalizeName(val));
+    if(hits.length === 0){
+      appendBot('<strong>Vui lòng nhập lại họ tên của bạn</strong>');
+    } else if(hits.length === 1){
+      selectedPerson = hits[0];
+      nameControls.classList.add('hidden');
+      numberControls.classList.remove('hidden');
+      appendBot(`Ok <strong>${selectedPerson.name}</strong> — ok vậy <em>chọn 1 con số từ 1 - 999 đi</em>`);
+    } else {
+      const container = appendBot('Mình tìm thấy nhiều người cùng tên, chọn đúng ngày sinh của bạn:');
+      const wrap = document.createElement('div'); wrap.style.marginTop = '8px';
+      hits.forEach(h=>{
+        const btn = document.createElement('button'); btn.className='btn ghost'; btn.style.margin='4px 6px 0 0';
+        btn.textContent = h.dob + ' — ' + h.name;
+        btn.addEventListener('click', ()=>{
+          selectedPerson = h;
+          wrap.remove();
+          nameControls.classList.add('hidden');
+          numberControls.classList.remove('hidden');
+          appendBot(`Đã chọn: <strong>${h.name} — ${h.dob}</strong>`);
+          appendBot('Ok vậy chọn 1 con số từ 1 - 999 đi');
+        });
+        wrap.appendChild(btn);
+      });
+      container.appendChild(wrap);
+    }
+    disableControlsDuringSend(false);
+    retryBtn.disabled = false;
+
+  } else if(lastAction.type === 'number'){
+    disableControlsDuringSend(true);
+    const loader = makeLoaderBubble();
+    await new Promise(r => setTimeout(r, randDelayMs()));
+    loader.remove();
+    chat.removeAttribute('aria-busy');
+
+    const n = lastAction.payload;
+    const selected = lastAction.person;
+    if(!selected){
+      appendBot('Chưa chọn người — quay lại nhập tên.');
+      nameControls.classList.remove('hidden');
+      numberControls.classList.add('hidden');
+      disableControlsDuringSend(false);
+      retryBtn.disabled = false;
+      return;
+    }
+
+    const {day,month} = parseDob(selected.dob);
+    const comp = computeDaysForThisYear(day,month,new Date());
+    let out='';
+
+    if(comp.isBirthdayToday){
+      happyAudio.play().catch(()=> { if (playWrap) playWrap.classList.remove('hidden'); });
+      confettiBurst(200);
+      const upper = selected.name.toLocaleUpperCase('vi');
+      out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!\n\n(Bạn đã nhập: ${n})`;
+    } else {
+      confettiBurst(120);
+      if(comp.passed){
+        if(n === comp.days){
+          out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì chúc mừng nhe<3`;
+        } else {
+          out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} (số ngày) kể từ sinh nhật bạn rồi`;
+        }
+      } else {
+        if(n === comp.days){
+          out = `Ten tèn ten, con số bạn chọn chính là còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!`;
+        } else {
+          out = `Uhm thôi kệ số đó đi, còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ`;
+        }
+      }
+    }
+
+    appendBot(out);
+    playWrap.classList.remove('hidden');
+    disableControlsDuringSend(false);
+    retryBtn.disabled = false;
+  }
+});
+
+/* ========== Events gốc ========== */
 sendNameBtn.addEventListener('click', handleNameSubmit);
 nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNameSubmit(); });
 
@@ -298,6 +497,8 @@ clearBtn.addEventListener('click', ()=>{
   numberControls.classList.add('hidden');
   nameControls.classList.remove('hidden');
   appendBot('Đã xóa. Bạn có thể nhập lại họ tên.');
+  lastAction = null;
+  retryBtn.classList.add('hidden');
 });
 
 sendNumBtn.addEventListener('click', handleNumberSubmit);
