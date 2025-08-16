@@ -12,7 +12,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI",Roboto,Arial;background:var(--bg);color:#0b1220;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:28px}
-  .container{width:100%;max-width:880px;border-radius:12px;padding:18px;border:1px solid #eee;box-shadow:0 8px 30px rgba(15,23,42,0.06);background:#fff;position:relative}
+  .container{width:100%;max-width:880px;border-radius:12px;padding:18px;border:1px solid #eee;box-shadow:0 8px 30px rgba(15,23,42,0.06);background:#fff}
   .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
   .logo{width:44px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
   .logo img{width:100%;height:100%;object-fit:cover;display:block}
@@ -35,7 +35,7 @@
   .result{margin-top:12px;padding:10px;border-radius:10px;background:#fff;border:1px solid #eee;white-space:pre-wrap}
   #confettiCanvas{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9999}
 
-  /* loader: hàng chữ + dots (nhạt nhạt) */
+  /* loader */
   .thinking-row{display:flex;align-items:center;gap:10px}
   .thinking-label{font-size:13px;color:var(--muted);font-weight:600}
   .dots{display:inline-flex;gap:6px;align-items:center}
@@ -44,41 +44,15 @@
   .dot.anim:nth-child(2){animation-delay:120ms}
   .dot.anim:nth-child(3){animation-delay:240ms}
   @keyframes fade{0%{opacity:0.25;transform:translateY(0)}50%{opacity:0.9;transform:translateY(-4px)}100%{opacity:0.25;transform:translateY(0)}}
-
-  /* persistent clear button (always visible) */
-  .persistent-clear{
-    position:absolute;
-    right:14px;
-    top:14px;
-    z-index:10;
-    border-radius:8px;
-    padding:6px 10px;
-    background:#fff;
-    border:1px solid #eee;
-    box-shadow:0 6px 18px rgba(15,23,42,0.06);
-    cursor:pointer;
-    color:var(--muted);
-    font-weight:600;
-  }
-  .persistent-clear:hover{background:#fafafa}
-
-  @media (max-width:720px){
-    .container{padding:12px}
-    .chat{min-height:360px}
-    .persistent-clear{right:8px;top:8px;padding:6px 8px}
-  }
+  @media (max-width:720px){ .container{padding:12px} .chat{min-height:360px} }
 </style>
 </head>
 <body>
 <canvas id="confettiCanvas"></canvas>
 
 <div class="container">
-  <!-- persistent clear (always visible) -->
-  <button id="persistentClear" class="persistent-clear" title="Xóa / Làm lại">Xóa</button>
-
   <div class="topbar">
     <div class="logo" title="Giòn Giòn (logo)">
-      <!-- Đặt logo.png cùng thư mục index.html -->
       <img src="logo.png" alt="logo">
     </div>
     <div class="brand">Giòn Giòn</div>
@@ -98,9 +72,11 @@
   <div id="nameControls" class="controls" style="margin-top:12px">
     <input id="nameInput" type="text" placeholder="Nhập họ và tên của bạn...">
     <button id="sendNameBtn" class="btn">Gửi tên</button>
-    <button id="clearBtn" class="btn ghost">Xóa</button>
-    <!-- nút Làm lại (ẩn) -->
     <button id="retryBtn" class="btn ghost hidden">Làm lại</button>
+  </div>
+
+  <div id="alwaysControls" class="controls" style="margin-top:12px">
+    <button id="clearBtn" class="btn ghost">Xóa</button>
   </div>
 
   <div id="numberControls" class="controls hidden" style="margin-top:12px">
@@ -113,20 +89,38 @@
   </div>
 </div>
 
-<!-- Audio: đặt happy.mp3 cùng thư mục hoặc đổi src sang link -->
 <audio id="happyAudio" src="happy.mp3" preload="auto"></audio>
 
 <script>
-/* ========== Dữ liệu (nguyên gốc) ========= */
+/* ---------------- helpers ---------------- */
+function normalizeName(s){
+  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();
+}
+function parseDob(ddmm){ const [d,m]=ddmm.split('/').map(x=>parseInt(x,10)); return {day:d,month:m}; }
+function localMidnight(date){ const t=new Date(date); t.setHours(0,0,0,0); return t; }
+function computeDaysForThisYear(day,month,today=new Date()){
+  const t = localMidnight(today);
+  const y = t.getFullYear();
+  let bd = new Date(y, month-1, day);
+  if (bd.getMonth() !== (month-1)) {
+    if (month===2 && day===29) bd = new Date(y,1,28);
+  }
+  bd = localMidnight(bd);
+  if(bd.getTime()===t.getTime()) return {isBirthdayToday:true,passed:false,days:0};
+  if(bd.getTime() < t.getTime()) { const days = Math.floor((t - bd)/86400000); return {isBirthdayToday:false,passed:true,days}; }
+  else { const days = Math.ceil((bd - t)/86400000); return {isBirthdayToday:false,passed:false,days}; }
+}
+
+/* ---------------- data (RAW_LIST) ---------------- */
 const RAW_LIST = [
   { name: "Nguyễn Nghi Quỳnh", dob: "05/01" },
   { name: "Trần Minh Bảo Hân", dob: "29/03" },
   { name: "Nguyễn Trí Tường", dob: "19/01" },
   { name: "Tô Dương Bảo Khánh", dob: "04/07" },
-  { name: "Trần Nguyễn Minh Ngọc", dob: "26/01" },
+  { name: "Mngoc", dob: "26/01" },
   { name: "Cao Ngọc Kim Thư", dob: "07/02" },
   { name: "Lương Mai Trang", dob: "06/11" },
-  { name: "Trần Nguyễn Minh Ngọc", dob: "18/05" },
+  { name: "Bella", dob: "18/05" },
   { name: "Trần Hồng Ân", dob: "31/03" },
   { name: "Nguyễn Phạm Thuý Uyên", dob: "12/05" },
   { name: "Cao Ngọc Thiên Kim", dob: "10/05" },
@@ -154,30 +148,10 @@ const RAW_LIST = [
   { name: "Nguyễn Đặng Hoàng Lê", dob: "25/08" },
   { name: "Phùng Thị Lan Phương", dob: "13/05" },
   { name: "Nguyễn Ngọc Huy Khang", dob: "06/07" },
-  { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" },
-  { name: "Nguyễn Hồng Gia", dob: "15/8" }
+  { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" }
 ];
 
-/* ========== Helpers ========= */
-function normalizeName(s){
-  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();
-}
-function parseDob(ddmm){ const [d,m]=ddmm.split('/').map(x=>parseInt(x,10)); return {day:d,month:m}; }
-function localMidnight(date){ const t=new Date(date); t.setHours(0,0,0,0); return t; }
-function computeDaysForThisYear(day,month,today=new Date()){
-  const t = localMidnight(today);
-  const y = t.getFullYear();
-  let bd = new Date(y, month-1, day);
-  if (bd.getMonth() !== (month-1)) {
-    if (month===2 && day===29) bd = new Date(y,1,28);
-  }
-  bd = localMidnight(bd);
-  if(bd.getTime()===t.getTime()) return {isBirthdayToday:true,passed:false,days:0};
-  if(bd.getTime() < t.getTime()) { const days = Math.floor((t - bd)/86400000); return {isBirthdayToday:false,passed:true,days}; }
-  else { const days = Math.ceil((bd - t)/86400000); return {isBirthdayToday:false,passed:false,days}; }
-}
-
-/* ========== DOM refs ========= */
+/* ---------------- DOM refs ---------------- */
 const chat = document.getElementById('chat');
 const initialBot = document.getElementById('initialBot');
 const nameControls = document.getElementById('nameControls');
@@ -194,10 +168,7 @@ const playWrap = document.getElementById('playWrap');
 const playMusicBtn = document.getElementById('playMusicBtn');
 const happyAudio = document.getElementById('happyAudio');
 
-/* persistent clear button (always visible) */
-const persistentClear = document.getElementById('persistentClear');
-
-/* ========== Confetti (giữ nguyên) ========= */
+/* ---------------- confetti ---------------- */
 const confettiCanvas = document.getElementById('confettiCanvas');
 const confCtx = confettiCanvas.getContext && confettiCanvas.getContext('2d');
 let confDPR = window.devicePixelRatio || 1;
@@ -211,74 +182,104 @@ function confettiBurst(count=120){
   (function loop(){ confCtx.clearRect(0,0,window.innerWidth,window.innerHeight); for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.ttl--; confCtx.fillStyle=p.color; confCtx.fillRect(p.x,p.y,p.w,p.w*0.6); if(p.ttl<=0||p.y>window.innerHeight+50) parts.splice(i,1); } if(parts.length>0) requestAnimationFrame(loop); else confCtx.clearRect(0,0,window.innerWidth,window.innerHeight); })();
 }
 
-/* ========== Audio control: stop function ========== */
+/* ---------------- audio control ---------------- */
 function stopAudio(){
-  try{
-    happyAudio.pause();
-    happyAudio.currentTime = 0;
-  }catch(e){}
+  try{ happyAudio.pause(); happyAudio.currentTime = 0; }catch(e){}
   if (playWrap) playWrap.classList.add('hidden');
 }
 
-/* ========== Chat helpers ========= */
-function appendBot(text, opts={}){
+/* ---------------- chat helpers ---------------- */
+function appendBot(text){
   const m = document.createElement('div'); m.className='msg bot';
   const av = document.createElement('div'); av.className='avatar'; av.innerHTML = '<img src="logo.png" alt="bot">';
   const bubble = document.createElement('div'); bubble.className='bubble bot'; bubble.innerHTML = text;
   m.appendChild(av); m.appendChild(bubble);
   chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
-  return bubble;
+  return m;
 }
 function appendUser(text){
   const m = document.createElement('div'); m.className='msg user';
   const bubble = document.createElement('div'); bubble.className='bubble user'; bubble.textContent = text;
   m.appendChild(bubble); chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
-  return bubble;
+  return m;
 }
 
-/* ========== Loader helper (3-5s) ========= */
-function makeLoaderBubble(){
+/* ---------------- loader ---------------- */
+function makeLoaderBubble(label = 'Giòn Giòn đang suy nghĩ'){
   const m = document.createElement('div');
   m.className = 'msg bot';
-
-  const av = document.createElement('div'); av.className = 'avatar';
-  av.innerHTML = '<img src="logo.png" alt="Giòn Giòn">';
-
+  const av = document.createElement('div'); av.className = 'avatar'; av.innerHTML = '<img src="logo.png" alt="Giòn Giòn">';
   const bubble = document.createElement('div'); bubble.className = 'bubble bot';
-
   const row = document.createElement('div'); row.className = 'thinking-row';
-  const label = document.createElement('div'); label.className = 'thinking-label';
-  label.textContent = 'Giòn Giòn đang suy nghĩ';
-
+  const lab = document.createElement('div'); lab.className = 'thinking-label'; lab.textContent = label;
   const dots = document.createElement('span'); dots.className = 'dots';
-  for(let i=0;i<3;i++){
-    const d = document.createElement('span');
-    d.className = 'dot anim';
-    dots.appendChild(d);
-  }
-
-  row.appendChild(label);
-  row.appendChild(dots);
-  bubble.appendChild(row);
-
-  m.appendChild(av);
-  m.appendChild(bubble);
-
-  chat.appendChild(m);
-  chat.scrollTop = chat.scrollHeight;
-
-  // accessibility: cho biết chat đang bận
+  for(let i=0;i<3;i++){ const d = document.createElement('span'); d.className = 'dot anim'; dots.appendChild(d); }
+  row.appendChild(lab); row.appendChild(dots); bubble.appendChild(row);
+  m.appendChild(av); m.appendChild(bubble);
+  chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
   chat.setAttribute('aria-busy', 'true');
-
   return m;
 }
 function randDelayMs(){ return 3000 + Math.floor(Math.random()*2000); }
 
-/* ========== Main flow + trạng thái cho Retry ========= */
-let selectedPerson = null;
-let lastAction = null; // {type: 'name'|'number', payload: '...'}
+/* ---------------- templates (strings contain literal placeholders like ${comp.days}) ---------------- */
+/* Use normalized names as keys */
+const TEMPLATES = {};
+TEMPLATES[normalizeName("Nguyễn Nghi Quỳnh")] = {
+  before: {
+    correct: [
+      'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+      'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Quỳnh ở đây, nói chung rất là vui luôn :DDDD'
+    ],
+    wrong: [
+      'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+      'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy...'
+    ]
+  },
+  onBirthday: [
+    '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+    'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD'
+  ],
+  after: {
+    correct: [
+      'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+      'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333'
+    ],
+    wrong: [
+      'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+      'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+    ]
+  }
+};
 
-/* tiện ích khóa control */
+TEMPLATES[normalizeName("Mngoc")] = {
+  before: {
+    correct: ['Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!!'],
+    wrong: ['Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ...']
+  },
+  onBirthday: ['☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙'],
+  after: {
+    correct: ['Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.'],
+    wrong: ['Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!']
+  }
+};
+
+TEMPLATES[normalizeName("Bella")] = {
+  before: {
+    correct: ['Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!!'],
+    wrong: ['Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ...']
+  },
+  onBirthday: ['☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙'],
+  after: {
+    correct: ['Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.'],
+    wrong: ['Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!']
+  }
+};
+
+/* ---------------- main flow ---------------- */
+let selectedPerson = null;
+let lastAction = null;
+
 function disableControlsDuringSend(disabled){
   nameInput.disabled = disabled;
   sendNameBtn.disabled = disabled;
@@ -287,10 +288,9 @@ function disableControlsDuringSend(disabled){
   sendNumBtn.disabled = disabled;
   retryBtn.disabled = disabled;
   playMusicBtn.disabled = disabled;
-  // persistentClear should remain enabled (always visible)
 }
 
-/* Xử lý gửi tên — bây giờ có loader 3-5s */
+/* name submit */
 async function handleNameSubmit(){
   stopAudio();
   const val = (nameInput.value||'').trim();
@@ -299,24 +299,14 @@ async function handleNameSubmit(){
   const hits = RAW_LIST.filter(p => normalizeName(p.name) === norm);
 
   if(initialBot) { initialBot.remove(); }
-
-  // show user bubble immediately
   appendUser(val);
   nameInput.value='';
 
-  // show loader
   disableControlsDuringSend(true);
-  const loaderNode = makeLoaderBubble();
-
-  // lưu lastAction để nút Làm lại dùng
+  const loader = makeLoaderBubble('Giòn Giòn đang suy nghĩ...');
   lastAction = { type: 'name', payload: val, hits: hits };
-
-  // đợi 3-5s
   await new Promise(r => setTimeout(r, randDelayMs()));
-
-  // remove loader & aria flag
-  loaderNode.remove();
-  chat.removeAttribute('aria-busy');
+  loader.remove(); chat.removeAttribute('aria-busy');
 
   if(hits.length === 0){
     appendBot('<strong>Vui lòng nhập lại họ tên của bạn</strong>');
@@ -324,18 +314,15 @@ async function handleNameSubmit(){
     retryBtn.classList.remove('hidden'); retryBtn.disabled = false;
     return;
   }
-
   if(hits.length === 1){
     selectedPerson = hits[0];
     nameControls.classList.add('hidden');
     numberControls.classList.remove('hidden');
-    appendBot(`Ok <strong>${selectedPerson.name}</strong> — ok vậy <em>chọn 1 con số từ 1 - 999 đi</em>`);
+    appendBot('Ok <strong>' + selectedPerson.name + '</strong> — ok vậy <em>chọn 1 con số từ 1 - 999 đi</em>');
     disableControlsDuringSend(false);
     retryBtn.classList.remove('hidden'); retryBtn.disabled = false;
     return;
   }
-
-  // multiple matches -> hiển thị lựa chọn
   const container = appendBot('Mình tìm thấy nhiều người cùng tên, chọn đúng ngày sinh của bạn:');
   const wrap = document.createElement('div'); wrap.style.marginTop = '8px';
   hits.forEach(h=>{
@@ -346,7 +333,7 @@ async function handleNameSubmit(){
       wrap.remove();
       nameControls.classList.add('hidden');
       numberControls.classList.remove('hidden');
-      appendBot(`Đã chọn: <strong>${h.name} — ${h.dob}</strong>`);
+      appendBot('Đã chọn: <strong>' + h.name + ' — ' + h.dob + '</strong>');
       appendBot('Ok vậy chọn 1 con số từ 1 - 999 đi');
     });
     wrap.appendChild(btn);
@@ -356,89 +343,96 @@ async function handleNameSubmit(){
   retryBtn.classList.remove('hidden'); retryBtn.disabled = false;
 }
 
-/* Xử lý gửi số — có loader 3-5s */
+/* number submit (with templates and replacements) */
 async function handleNumberSubmit(){
   const raw = numInput.value;
   const n = Number(raw);
   if(!raw || isNaN(n) || n<1 || n>999){ appendBot('<strong>Hãy nhập một số hợp lệ từ 1 đến 999.</strong>'); return; }
 
-  appendUser(String(n));
-  numInput.value='';
+  appendUser(String(n)); numInput.value='';
+  if(!selectedPerson){ appendBot('Chưa chọn người — quay lại nhập tên.'); nameControls.classList.remove('hidden'); numberControls.classList.add('hidden'); return; }
 
-  if(!selectedPerson){
-    appendBot('Chưa chọn người — quay lại nhập tên.');
-    nameControls.classList.remove('hidden');
-    numberControls.classList.add('hidden');
-    return;
-  }
-
-  // lưu lastAction để retry
-  lastAction = { type: 'number', payload: n, person: selectedPerson };
-
-  // show loader
+  lastAction = { type:'number', payload: n, person: selectedPerson };
   disableControlsDuringSend(true);
-  const loaderNode = makeLoaderBubble();
 
+  const loader1 = makeLoaderBubble('Giòn Giòn đang suy nghĩ...');
   await new Promise(r => setTimeout(r, randDelayMs()));
-
-  // remove loader & aria flag
-  loaderNode.remove();
+  loader1.remove();
+  const loader2 = makeLoaderBubble('Giòn Giòn đang kiểm tra thêm...');
+  await new Promise(r => setTimeout(r, 2000 + Math.floor(Math.random()*1000)));
+  loader2.remove();
   chat.removeAttribute('aria-busy');
 
   const {day,month} = parseDob(selectedPerson.dob);
   const comp = computeDaysForThisYear(day,month,new Date());
-  let out='';
+  const days = comp.days;
+  const key = normalizeName(selectedPerson.name);
+  const tpl = TEMPLATES[key];
+
+  let outLines = [];
 
   if(comp.isBirthdayToday){
-    // play audio (allowed vì người đã click)
-    happyAudio.play().catch(()=> { if (playWrap) playWrap.classList.remove('hidden'); });
+    try{ happyAudio.play(); }catch(e){ if (playWrap) playWrap.classList.remove('hidden'); }
     confettiBurst(200);
     const upper = selectedPerson.name.toLocaleUpperCase('vi');
-    out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!`;
+    if(tpl && tpl.onBirthday){
+      outLines = tpl.onBirthday.map(s => s.replace('${upper}', upper));
+    } else {
+      outLines = ['MEL MEL MEL CHÚC MỪNG SINH NHẬT ' + upper + ' MĂM MĂM RỘP RỘP!!!!!', '(Bạn đã nhập: ' + n + ')'];
+    }
   } else {
     confettiBurst(120);
-    if(comp.passed){
-      if(n === comp.days){
-        out = ` Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL`;
+    const isPassed = comp.passed;
+    if(tpl){
+      if(isPassed){
+        if(n === days){
+          outLines = tpl.after && tpl.after.correct ? tpl.after.correct.map(s => s.replace(/\$\{comp\.days\}/g, days).replace(/\$\{comp.days\}/g, days)) : ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì CHÚC MỪNG nhe<3'];
+        } else {
+          outLines = tpl.after && tpl.after.wrong ? tpl.after.wrong.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Con số này tuy ko liên quan nhưng mà đã qua '+days+' kể từ sinh nhật bạn rồi, rộp rộp!!!!!'];
+        }
       } else {
-        out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp nhoàn nhoàn!!!!!`;
+        if(n === days){
+          outLines = tpl.before && tpl.before.correct ? tpl.before.correct.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+        } else {
+          outLines = tpl.before && tpl.before.wrong ? tpl.before.wrong.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
+        }
       }
     } else {
-      if(n === comp.days){
-        out = `Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!`;
+      // fallback
+      if(isPassed){
+        if(n === days) outLines = ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì chúc mừng nhe<3'];
+        else outLines = ['Con số này ko liên quan nhưng mà đã qua '+days+' (số ngày) kể từ sinh nhật bạn rồi'];
       } else {
-        out = `Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi`;
+        if(n === days) outLines = ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+        else outLines = ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
       }
     }
   }
 
-  appendBot(out);
-  playWrap.classList.remove('hidden');
+  appendBot(outLines.join('\n\n'));
+  if(playWrap) playWrap.classList.remove('hidden');
   disableControlsDuringSend(false);
   retryBtn.classList.remove('hidden'); retryBtn.disabled = false;
 }
 
-/* ========== Retry (Làm lại) ========= */
+/* retry logic */
 retryBtn.addEventListener('click', async ()=>{
   if(!lastAction) return;
   retryBtn.disabled = true;
-
   if(lastAction.type === 'name'){
     disableControlsDuringSend(true);
-    const loader = makeLoaderBubble();
+    const loader = makeLoaderBubble('Giòn Giòn đang suy nghĩ...');
     await new Promise(r => setTimeout(r, randDelayMs()));
-    loader.remove();
-    chat.removeAttribute('aria-busy');
+    loader.remove(); chat.removeAttribute('aria-busy');
 
     const val = lastAction.payload;
     const hits = RAW_LIST.filter(p => normalizeName(p.name) === normalizeName(val));
-    if(hits.length === 0){
-      appendBot('<strong>Vui lòng nhập lại họ tên của bạn</strong>');
-    } else if(hits.length === 1){
+    if(hits.length === 0) appendBot('<strong>Vui lòng nhập lại họ tên của bạn</strong>');
+    else if(hits.length === 1){
       selectedPerson = hits[0];
       nameControls.classList.add('hidden');
       numberControls.classList.remove('hidden');
-      appendBot(`Ok <strong>${selectedPerson.name}</strong> — ok vậy <em>chọn 1 con số từ 1 - 999 đi</em>`);
+      appendBot('Ok <strong>' + selectedPerson.name + '</strong> — ok vậy <em>chọn 1 con số từ 1 - 999 đi</em>');
     } else {
       const container = appendBot('Mình tìm thấy nhiều người cùng tên, chọn đúng ngày sinh của bạn:');
       const wrap = document.createElement('div'); wrap.style.marginTop = '8px';
@@ -450,7 +444,7 @@ retryBtn.addEventListener('click', async ()=>{
           wrap.remove();
           nameControls.classList.add('hidden');
           numberControls.classList.remove('hidden');
-          appendBot(`Đã chọn: <strong>${h.name} — ${h.dob}</strong>`);
+          appendBot('Đã chọn: <strong>' + h.name + ' — ' + h.dob + '</strong>');
           appendBot('Ok vậy chọn 1 con số từ 1 - 999 đi');
         });
         wrap.appendChild(btn);
@@ -459,63 +453,64 @@ retryBtn.addEventListener('click', async ()=>{
     }
     disableControlsDuringSend(false);
     retryBtn.disabled = false;
-
   } else if(lastAction.type === 'number'){
     disableControlsDuringSend(true);
-    const loader = makeLoaderBubble();
-    await new Promise(r => setTimeout(r, randDelayMs()));
-    loader.remove();
+    const loaderA = makeLoaderBubble('Giòn Giòn đang suy nghĩ...');
+    await new Promise(r => setTimeout(r, randDelayMs())); loaderA.remove();
+    const loaderB = makeLoaderBubble('Giòn Giòn đang kiểm tra thêm...');
+    await new Promise(r => setTimeout(r, 2000 + Math.floor(Math.random()*1000))); loaderB.remove();
     chat.removeAttribute('aria-busy');
 
     const n = lastAction.payload;
     const selected = lastAction.person;
-    if(!selected){
-      appendBot('Chưa chọn người — quay lại nhập tên.');
-      nameControls.classList.remove('hidden');
-      numberControls.classList.add('hidden');
-      disableControlsDuringSend(false);
-      retryBtn.disabled = false;
-      return;
-    }
+    if(!selected){ appendBot('Chưa chọn người — quay lại nhập tên.'); nameControls.classList.remove('hidden'); numberControls.classList.add('hidden'); disableControlsDuringSend(false); retryBtn.disabled = false; return; }
 
     const {day,month} = parseDob(selected.dob);
     const comp = computeDaysForThisYear(day,month,new Date());
-    let out='';
+    const days = comp.days;
+    const key = normalizeName(selected.name);
+    const tpl = TEMPLATES[key];
+    let outLines = [];
 
     if(comp.isBirthdayToday){
-      happyAudio.play().catch(()=> { if (playWrap) playWrap.classList.remove('hidden'); });
+      try{ happyAudio.play(); }catch(e){ if (playWrap) playWrap.classList.remove('hidden'); }
       confettiBurst(200);
       const upper = selected.name.toLocaleUpperCase('vi');
-      out = `MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!!\n\n(Bạn đã nhập: ${n})`;
+      if(tpl && tpl.onBirthday) outLines = tpl.onBirthday.map(s => s.replace('${upper}', upper));
+      else outLines = ['MEL MEL MEL CHÚC MỪNG SINH NHẬT ' + upper + ' MĂM MĂM RỘP RỘP!!!!!', '(Bạn đã nhập: ' + n + ')'];
     } else {
       confettiBurst(120);
-      if(comp.passed){
-        if(n === comp.days){
-          out = `Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì chúc mừng nhe<3`;
+      const isPassed = comp.passed;
+      if(tpl){
+        if(isPassed){
+          if(n === days) outLines = tpl.after && tpl.after.correct ? tpl.after.correct.map(s => s.replace(/\$\{comp\.days\}/g, days).replace(/\$\{comp.days\}/g, days)) : ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì CHÚC MỪNG nhe<3'];
+          else outLines = tpl.after && tpl.after.wrong ? tpl.after.wrong.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Con số này tuy ko liên quan nhưng mà đã qua '+days+' kể từ sinh nhật bạn rồi, rộp rộp!!!!!'];
         } else {
-          out = `Con số này ko liên quan nhưng mà đã qua ${comp.days} (số ngày) kể từ sinh nhật bạn rồi`;
+          if(n === days) outLines = tpl.before && tpl.before.correct ? tpl.before.correct.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+          else outLines = tpl.before && tpl.before.wrong ? tpl.before.wrong.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
         }
       } else {
-        if(n === comp.days){
-          out = `Ten tèn ten, con số bạn chọn chính là còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!`;
+        if(isPassed){
+          if(n === days) outLines = ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì chúc mừng nhe<3'];
+          else outLines = ['Con số này ko liên quan nhưng mà đã qua '+days+' kể từ sinh nhật bạn rồi'];
         } else {
-          out = `Uhm thôi kệ số đó đi, còn ${comp.days} (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ`;
+          if(n === days) outLines = ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+          else outLines = ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
         }
       }
     }
 
-    appendBot(out);
-    playWrap.classList.remove('hidden');
+    appendBot(outLines.join('\n\n'));
+    if(playWrap) playWrap.classList.remove('hidden');
     disableControlsDuringSend(false);
     retryBtn.disabled = false;
   }
 });
 
-/* ========== Events gốc ========== */
+/* ---------------- events ---------------- */
 sendNameBtn.addEventListener('click', handleNameSubmit);
 nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNameSubmit(); });
 
-// clear: stop audio and reset UI (same behavior used by persistentClear)
 function doClearAll(){
   stopAudio();
   nameInput.value='';
@@ -526,21 +521,14 @@ function doClearAll(){
   lastAction = null;
   retryBtn.classList.add('hidden');
 }
-
-// old clear button inside controls
 clearBtn.addEventListener('click', doClearAll);
-// persistent always-visible clear button
-persistentClear.addEventListener('click', doClearAll);
 
 sendNumBtn.addEventListener('click', handleNumberSubmit);
 numInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNumberSubmit(); });
 
 playMusicBtn.addEventListener('click', ()=> { happyAudio.play().catch(()=> alert('Không thể phát nhạc — kiểm tra file happy.mp3 hoặc quyền trình duyệt')); });
 
-/* autofocus */
 nameInput.focus();
-
-/* auto-scroll */
 const chatObserver = new MutationObserver(()=>{ chat.scrollTop = chat.scrollHeight; });
 chatObserver.observe(chat, { childList:true, subtree:true });
 </script>
