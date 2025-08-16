@@ -100,7 +100,7 @@
 <audio id="happyAudio" src="happy.mp3" preload="auto"></audio>
 
 <script>
-/* ---------------- helpers ---------------- */
+/* ---------- helpers ---------- */
 function normalizeName(s){
   return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();
 }
@@ -119,7 +119,7 @@ function computeDaysForThisYear(day,month,today=new Date()){
   else { const days = Math.ceil((bd - t)/86400000); return {isBirthdayToday:false,passed:false,days}; }
 }
 
-/* ---------------- data: updated (Mngoc & Bella) ---------------- */
+/* ---------- updated RAW_LIST (Mngoc & Bella replaced) ---------- */
 const RAW_LIST = [
   { name: "Nguyễn Nghi Quỳnh", dob: "05/01" },
   { name: "Trần Minh Bảo Hân", dob: "29/03" },
@@ -159,7 +159,7 @@ const RAW_LIST = [
   { name: "Lê Nguyễn Khánh Lynh", dob: "08/08" }
 ];
 
-/* ---------------- DOM refs ---------------- */
+/* ---------- DOM refs ---------- */
 const chat = document.getElementById('chat');
 const initialBot = document.getElementById('initialBot');
 const nameControls = document.getElementById('nameControls');
@@ -176,7 +176,7 @@ const playWrap = document.getElementById('playWrap');
 const playMusicBtn = document.getElementById('playMusicBtn');
 const happyAudio = document.getElementById('happyAudio');
 
-/* ---------------- confetti ---------------- */
+/* ---------- confetti ---------- */
 const confettiCanvas = document.getElementById('confettiCanvas');
 const confCtx = confettiCanvas.getContext && confettiCanvas.getContext('2d');
 let confDPR = window.devicePixelRatio || 1;
@@ -190,13 +190,13 @@ function confettiBurst(count=120){
   (function loop(){ confCtx.clearRect(0,0,window.innerWidth,window.innerHeight); for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.ttl--; confCtx.fillStyle=p.color; confCtx.fillRect(p.x,p.y,p.w,p.w*0.6); if(p.ttl<=0||p.y>window.innerHeight+50) parts.splice(i,1); } if(parts.length>0) requestAnimationFrame(loop); else confCtx.clearRect(0,0,window.innerWidth,window.innerHeight); })();
 }
 
-/* ---------------- audio control ---------------- */
+/* ---------- audio control ---------- */
 function stopAudio(){
   try{ happyAudio.pause(); happyAudio.currentTime = 0; }catch(e){}
   if (playWrap) playWrap.classList.add('hidden');
 }
 
-/* ---------------- chat helpers ---------------- */
+/* ---------- chat helpers ---------- */
 function appendBot(text){
   const m = document.createElement('div'); m.className='msg bot';
   const av = document.createElement('div'); av.className='avatar'; av.innerHTML = '<img src="logo.png" alt="bot">';
@@ -212,7 +212,7 @@ function appendUser(text){
   return m;
 }
 
-/* ---------------- loader (dots) ---------------- */
+/* ---------- loader (dots) ---------- */
 function makeLoaderBubble(label = 'Giòn Giòn đang suy nghĩ'){
   const m = document.createElement('div');
   m.className = 'msg bot';
@@ -230,7 +230,993 @@ function makeLoaderBubble(label = 'Giòn Giòn đang suy nghĩ'){
 }
 function randDelayMs(){ return 3000 + Math.floor(Math.random()*2000); }
 
-/* ---------------- main flow ---------------- */
+/* ---------- TEMPLATES: kịch bản theo người (mẫu) ---------- */
+/*
+  Mình dùng chuỗi có placeholder:
+   - ${comp.days} (sẽ được replace bằng số ngày)
+   - ${upper} (tên in hoa)
+  Lưu ý: chuỗi ở đây là literal (được giữ nguyên) và sẽ được xử lý khi in ra.
+*/
+const TEMPLATES = {
+  [normalizeName("Nguyễn Nghi Quỳnh")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Nghi Quỳnh ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+      '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+      'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã kết nối tất cả mọi người với nhau, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝'
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  [normalizeName("Trần Minh Bảo Hân")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Bảo Hân ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+      '☽༓･*˚⁺‧͙ MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+      'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã giúp tất cả mọi người gặp nhau, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝'
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  [normalizeName("Nguyễn Trí Tường")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Tris Tuowngf ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+      '☽༓･*˚⁺‧͙ MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+      'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã hỗ trợ các bạn trong ban Chương Trình và cũng giúp Giòn Giòn có thêm kiến thức về sức khỏe, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝'
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  [normalizeName("Tô Dương Bảo Khánh")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Bảo Khánh ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+      '☽༓･*˚⁺‧͙ MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+      'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã giúp đỡ ban Chương Trình nói riêng và dự án Giòn Giòn nói chung, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝'
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Mngoc (Trần Nguyễn Minh Ngọc 26/01) */
+  [normalizeName("Mngoc")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Mngọc ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+      '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+      'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã dẫn dắt các thành viên ban Đối Ngoại và giúp cho dự án có thêm nhà tài trợ để hỗ trợ các sự kiện lớn của Giòn Giòn, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝'
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Bella (Trần Nguyễn Minh Ngọc 18/05) */
+  [normalizeName("Bella")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Bella ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+      '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+      'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã giúp đỡ các thành viên ban HR và hỗ trợ dự án hoàn thành task đúng deadlines, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝'
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Cao Ngọc Kim Thư */
+  [normalizeName("Cao Ngọc Kim Thư")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Kim Thư ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã dẫn dắt các thành viên ban Đối Ngoại và giúp cho dự án có thêm nhà tài trợ để hỗ trợ các sự kiện lớn của Giòn Giòn, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Lương Mai Trang */ 
+  [normalizeName("Lương Mai Trang")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Mai Trang ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã hỗ trợ các thành viên ban Sự Kiện và hỗ trợ cho sự kiện “Rắn Rối Ren” và “Triển lãm đa giác quan D.O.S.E.”, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Trần Hồng Ân */ 
+  [normalizeName("Trần Hồng Ân")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Hồng Ân ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã viết caption cho các bài đăng dự án và sửa chữa cái lỗi của các thành viên ban Sáng tạo - Viết, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Phạm Thúy Uyên */ 
+  [normalizeName("Nguyễn Phạm Thúy Uyên")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Thúy Uyên ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã des những hình ảnh rất là iconic và nó mang cái chất rất riêng lan tỏa cho mọi người, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Cao Ngọc Thiên Kim */ 
+  [normalizeName("Cao Ngọc Thiên Kim")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Thiên Kim ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đồng hành cùng với dự án Giòn Giòn, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Ngọc Phương Nhi*/ 
+[normalizeName("Nguyễn Ngọc Phương Nhi")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Emma Nguyễn ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã đồng hành và hỗ trợ với các bạn ban Chương Trình và đồng thời góp sức cho các sự kiện dự án, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Bùi Hoàng Quân */ 
+  [normalizeName("Bùi Hoàng Quân")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Elvis Bùi ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã đồng hành và hỗ trợ với các bạn ban Chương Trình và đồng thời góp sức cho các sự kiện dự án, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Ngọc Ngân Hà */ 
+  [normalizeName("Nguyễn Ngọc Ngân Hà")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Tina Ngân Hà ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc em 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn em vì đã đồng hành và hỗ trợ với các bạn ban Chương Trình và đồng thời góp sức cho các sự kiện dự án, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho em, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Phạm Vũ Bảo Ngọc */
+  [normalizeName("Phạm Vũ Bảo Ngọc")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Bảo Ngọc ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã cố gắng giúp cho dự án có thể nhận được tài trợ từ các nhà tài trợ, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Trương Hoàng Tấn Dũng */ 
+  [normalizeName("Trương Hoàng Tấn Dũng")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Tấn Dũng ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã cố gắng giúp cho dự án có thể nhận được tài trợ từ các nhà tài trợ, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Minh Đăng */ 
+  [normalizeName("Nguyễn Minh Đăng")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Minh Đăng ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã cố gắng giúp cho dự án có thể nhận được tài trợ từ các nhà tài trợ, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Phạm Quỳnh Hương */ 
+  [normalizeName("Phạm Quỳnh Hương")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Quỳnh Hương ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã cố gắng giúp cho dự án có thể lên plan và tổ chức các sự kiện hoành tráng, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Nhựt Minh */ 
+  [normalizeName("Nguyễn Nhựt Minh")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Nhựt Minh ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã cố gắng giúp cho dự án có thể lên plan và tổ chức các sự kiện hoành tráng, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Đoàn Minh Thư */ 
+  [normalizeName("Đoàn Minh Thư")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Minh Thư ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã cố gắng giúp cho dự án có thể lên plan và tổ chức các sự kiện hoành tráng, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Hải Điền */
+  [normalizeName("Nguyễn Hải Điền")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Hải Điền ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã cố gắng giúp cho dự án có thể lên plan và tổ chức các sự kiện hoành tráng, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Hồ Mai Phương */ 
+  [normalizeName("Hồ Mai Phương")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Mai Phương ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động và hỗ trợ ban Sáng tạo - Viết có thể hoàn thành deadline đúng hạn, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Đặng Quang Thiện */ 
+  [normalizeName("Đặng Quang Thiện")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Quang Thiện ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động và hỗ trợ ban Sự Kiện có thể hoàn thành deadline đúng hạn, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Đặng Hoàng Linh Chi */ 
+  [normalizeName("Đặng Hoàng Linh Chi")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Linh Chi ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động và hỗ trợ ban Đối Ngoại có thể hoàn thành deadline đúng hạn, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Châu Khả Ái */ 
+  [normalizeName("Châu Khả Ái")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Khả Ái ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động và hỗ trợ ban Sáng tạo - Design có thể hoàn thành deadline đúng hạn, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Duy Hoàng */ 
+  [normalizeName("Nguyễn Hoàng Duy")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Hoàng Duy ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm viết vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Đoàn Thể Tần */ 
+  [normalizeName("Đoàn Thể Tần")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Thể Tần ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm viết vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Ngô Bảo Khoa */ 
+  [normalizeName("Ngô Bảo Khoa")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Bảo Khoa ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm viết vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Lê Cát Khuê Anh */ 
+  [normalizeName("Lê Cát Khuê Anh")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Khuê Anh ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm viết vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Trương Tiến Phát */ 
+  [normalizeName("Trương Tiến Phát")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Tiến Phát ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm viết vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Bùi Quỳnh Anh */ 
+  [normalizeName("Bùi Quỳnh Anh")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Quỳnh Anh ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm sáng tạo như các bức vẽ trong các bài post vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Đặng Hoàng Lê */ 
+  [normalizeName("Nguyễn Đặng Hoàng Lê")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Hoàng Lê ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm sáng tạo như các bức vẽ trong các bài post vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Phùng Thị Lan Phương */ 
+  [normalizeName("Phùng Thị Lan Phương")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Lan Hương ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm sáng tạo như các bức vẽ trong các bài post vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Nguyễn Ngọc Huy Khang */ 
+  [normalizeName("Nguyễn Ngọc Huy Khang")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Huy Khang ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái bức hình chụp rất là cực phẩm, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+
+  /* Lê Nguyễn Khánh Lynh */ 
+  [normalizeName("Lê Nguyễn Khánh Lynh")]: {
+    before: {
+      correct: [
+        'Ten tèn ten, con số bạn chọn thể hiện là còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, CONGRATULATIONS!!! CHÚC MỪNG SỚM NHE!!!!!',
+        'Nhưng mà ngoài ra thì cũng sắp + 1 tuổi rồi, cũng đã trải qua nhiều đoạn đường khó khăn của Giòn Giòn, giúp cho dự án phát triển rất nhiều, thật sự là một cái duyên khi gặp Khánh Lynh ở đây, nói chung rất là vui luôn :DDDD'
+      ],
+      wrong: [
+        'Uhm thôi kệ số đó đi <3, còn ${comp.days} nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ hạ hạ hạ hi hi hi',
+        'Đã sắp đến sinh nhật rồi, là sắp trưởng thành và chạm vào ước mơ sau này của m rồi đấy, cũng đồng nghĩa là sắp kết thúc nhiệm kỳ Giòn Giòn rồi, tuy có hơi buồn nhưng mà đến cuối cùng thì kỷ niệm vẫn còn, chúng ta vẫn là thành viên trong đại gia đình Giòn Giòn <3 (人´∀`)ᵗᑋᵃᐢᵏ ᵞᵒᵘ♡⃝⃜'
+      ]
+    },
+    onBirthday: [
+       '☽༓･*˚⁺‧͙  MEL MEL MEL CHÚC MỪNG SINH NHẬT ${upper} MĂM MĂM RỘP RỘP!!!!! ☽༓･*˚⁺‧͙',
+       'TR OI ĐÃ ĐẾN SINH NHẬT RỒI, AGAIN CHÚC MỪNG NHA :DDDDDDD, hơi tiếc là không thể tặng m 1 món quà nhưng mà dự án muốn chúc m 1 ngày sinh nhật thật vui vẻ, luôn vui tươi. Và dự án muốn cảm ơn m vì đã luôn năng động cho ra cái sản phẩm sáng tạo như các bức vẽ trong các bài post vô cùng chất lượng và mức hoàn thiện cao nhất, RẤT LÀ CẢM ƠN HIC <3 ദ്ദി(˵ •̀ ᴗ - ˵ )ᵍᵒᵒᵈ ʲᵒᵇ'
+    ],
+    after: {
+      correct: [
+        'Mình sẽ giải đáp con số đó. Con số đó là số ngày kể từ ngày sinh nhật của cậu (${comp.days} ngày), dù sao thì CHÚC MỪNG nhe<3 MEL MEL.',
+        'Dù sinh nhật đã qua thì dự án cũng muốn chúc mừng sinh nhật lại cho m, tuổi mới cái gì cũng mới và 8386 nhe <33333 ⸜( •⌄• )⸝ '
+      ],
+      wrong: [
+        'Con số này tuy ko liên quan nhưng mà đã qua ${comp.days} kể từ sinh nhật bạn rồi, rộp rộp!!!!!',
+        'Hihihi tuy cuộc đời không cho m quả quýt thì cho m duyên phận để gặp mọi người trong Giòn Giòn (｡•̀ᴗ-)✧'
+      ]
+    }
+  },
+  // Nếu muốn thêm nhiều người khác, copy cấu trúc phía trên và dán vào đây.
+};
+
+/* ---------- main flow ---------- */
 let selectedPerson = null;
 let lastAction = null;
 
@@ -320,30 +1306,56 @@ async function handleNumberSubmit(){
   loader2.remove();
   chat.removeAttribute('aria-busy');
 
-  // result logic (same as before)
+  // result logic
   const {day,month} = parseDob(selectedPerson.dob);
   const comp = computeDaysForThisYear(day,month,new Date());
   const days = comp.days;
   let outLines = [];
 
+  const key = normalizeName(selectedPerson.name);
+  const tpl = TEMPLATES[key];
+
   if(comp.isBirthdayToday){
     try{ happyAudio.play(); }catch(e){ if (playWrap) playWrap.classList.remove('hidden'); }
     confettiBurst(200);
     const upper = selectedPerson.name.toLocaleUpperCase('vi');
-    outLines = ['MEL MEL MEL CHÚC MỪNG SINH NHẬT ' + upper + ' MĂM MĂM RỘP RỘP!!!!!', '(Bạn đã nhập: ' + n + ')'];
+    if(tpl && tpl.onBirthday){
+      outLines = tpl.onBirthday.map(s => s.replace(/\$\{upper\}/g, upper));
+    } else {
+      outLines = ['MEL MEL MEL CHÚC MỪNG SINH NHẬT ' + upper + ' MĂM MĂM RỘP RỘP!!!!!', '(Bạn đã nhập: ' + n + ')'];
+    }
   } else {
     confettiBurst(120);
-    if(comp.passed){
-      if(n === days){
-        outLines = ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì chúc mừng nhe<3'];
+    const isPassed = comp.passed;
+
+    if(tpl){
+      if(isPassed){
+        if(n === days){
+          outLines = tpl.after && tpl.after.correct ? tpl.after.correct.map(s => s.replace(/\$\{comp\.days\}/g, days).replace(/\$\{comp.days\}/g, days)) : ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì chúc mừng nhe<3'];
+        } else {
+          outLines = tpl.after && tpl.after.wrong ? tpl.after.wrong.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Con số này tuy ko liên quan nhưng mà đã qua '+days+' kể từ sinh nhật bạn rồi, rộp rộp!!!!!'];
+        }
       } else {
-        outLines = ['Con số này ko liên quan nhưng mà đã qua '+days+' (số ngày) kể từ sinh nhật bạn rồi'];
+        if(n === days){
+          outLines = tpl.before && tpl.before.correct ? tpl.before.correct.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+        } else {
+          outLines = tpl.before && tpl.before.wrong ? tpl.before.wrong.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
+        }
       }
     } else {
-      if(n === days){
-        outLines = ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+      // fallback
+      if(isPassed){
+        if(n === days){
+          outLines = ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì chúc mừng nhe<3'];
+        } else {
+          outLines = ['Con số này ko liên quan nhưng mà đã qua '+days+' (số ngày) kể từ sinh nhật bạn rồi'];
+        }
       } else {
-        outLines = ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
+        if(n === days){
+          outLines = ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+        } else {
+          outLines = ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
+        }
       }
     }
   }
@@ -404,12 +1416,84 @@ retryBtn.addEventListener('click', async ()=>{
     const days = comp.days;
     let outLines = [];
 
+    const key = normalizeName(selected.name);
+    const tpl = TEMPLATES[key];
+
     if(comp.isBirthdayToday){
       try{ happyAudio.play(); }catch(e){ if (playWrap) playWrap.classList.remove('hidden'); }
       confettiBurst(200);
       const upper = selected.name.toLocaleUpperCase('vi');
-      outLines = ['MEL MEL MEL CHÚC MỪNG SINH NHẬT ' + upper + ' MĂM MĂM RỘP RỘP!!!!!', '(Bạn đã nhập: ' + n + ')'];
+      if(tpl && tpl.onBirthday){
+        outLines = tpl.onBirthday.map(s => s.replace(/\$\{upper\}/g, upper));
+      } else {
+        outLines = ['MEL MEL MEL CHÚC MỪNG SINH NHẬT ' + upper + ' MĂM MĂM RỘP RỘP!!!!!', '(Bạn đã nhập: ' + n + ')'];
+      }
     } else {
       confettiBurst(120);
-      if(comp.passed){
-        if(n === days) outLines = ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì chúc mừng nhe<3'];
+      const isPassed = comp.passed;
+      if(tpl){
+        if(isPassed){
+          if(n === days){
+            outLines = tpl.after && tpl.after.correct ? tpl.after.correct.map(s => s.replace(/\$\{comp\.days\}/g, days).replace(/\$\{comp.days\}/g, days)) : ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì chúc mừng nhe<3'];
+          } else {
+            outLines = tpl.after && tpl.after.wrong ? tpl.after.wrong.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Con số này tuy ko liên quan nhưng mà đã qua '+days+' kể từ sinh nhật bạn rồi, rộp rộp!!!!!'];
+          }
+        } else {
+          if(n === days){
+            outLines = tpl.before && tpl.before.correct ? tpl.before.correct.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+          } else {
+            outLines = tpl.before && tpl.before.wrong ? tpl.before.wrong.map(s => s.replace(/\$\{comp\.days\}/g, days)) : ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
+          }
+        }
+      } else {
+        // fallback
+        if(isPassed){
+          if(n === days){
+            outLines = ['Mình sẽ giải đáp con số đó\n\nCon số đó là số ngày kể từ ngày sinh nhật của cậu ('+days+' ngày), dù sao thì chúc mừng nhe<3'];
+          } else {
+            outLines = ['Con số này ko liên quan nhưng mà đã qua '+days+' kể từ sinh nhật bạn rồi'];
+          }
+        } else {
+          if(n === days){
+            outLines = ['Ten tèn ten, con số bạn chọn chính là còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, congratulations!!!'];
+          } else {
+            outLines = ['Uhm thôi kệ số đó đi, còn '+days+' (số ngày) nữa sẽ tới sinh nhật bạn rồi, hẹ hẹ hẹ'];
+          }
+        }
+      }
+    }
+
+    appendBot(outLines.join('\n\n'));
+    if(playWrap) playWrap.classList.remove('hidden');
+    disableControlsDuringSend(false);
+    retryBtn.disabled = false;
+  }
+});
+
+/* ---------- events ---------- */
+sendNameBtn.addEventListener('click', handleNameSubmit);
+nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNameSubmit(); });
+
+function doClearAll(){
+  stopAudio();
+  nameInput.value='';
+  selectedPerson=null;
+  numberControls.classList.add('hidden');
+  nameControls.classList.remove('hidden');
+  appendBot('Đã xóa. Bạn có thể nhập lại họ tên.');
+  lastAction = null;
+  retryBtn.classList.add('hidden');
+}
+clearBtn.addEventListener('click', doClearAll);
+
+sendNumBtn.addEventListener('click', handleNumberSubmit);
+numInput.addEventListener('keydown', e=>{ if(e.key==='Enter') handleNumberSubmit(); });
+
+playMusicBtn.addEventListener('click', ()=> { happyAudio.play().catch(()=> alert('Không thể phát nhạc — kiểm tra file happy.mp3 hoặc quyền trình duyệt')); });
+
+nameInput.focus();
+const chatObserver = new MutationObserver(()=>{ chat.scrollTop = chat.scrollHeight; });
+chatObserver.observe(chat, { childList:true, subtree:true });
+</script>
+</body>
+</html>
